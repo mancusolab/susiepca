@@ -2,4 +2,4 @@
 Contributors
 ============
 
-* Nicholas Mancuso <nick.mancuso@gmail.com>
+* Dong Yuan <dongyuan@usc.edu>
