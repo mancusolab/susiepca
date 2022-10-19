@@ -1,23 +1,9 @@
 import jax.numpy as jnp
-import numpy as np
 import pandas as pd
-import procrustes
 
 
 def mse(X, Xhat):
-    return ((X - Xhat) ** 2).sum() / (X**2).sum()
-
-
-def procrustes_norm(W, What):
-
-    # Procruste Transformation
-    proc_trans_susie = procrustes.orthogonal(
-        np.asarray(What.T), np.asarray(W.T), scale=True
-    )
-
-    err = proc_trans_susie.error
-
-    return err
+    return jnp.sum((X - Xhat) ** 2) / jnp.sum(X**2)
 
 
 def compute_largest_pip(pip, n, absol=False):

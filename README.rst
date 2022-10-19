@@ -30,7 +30,7 @@
 |
 
 ========
-susiepca
+SuSiE-PCA
 ========
 
 

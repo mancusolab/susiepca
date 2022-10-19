@@ -6,7 +6,7 @@ source = susiepca
 
 [paths]
 source =
-    src/
+    susiepca/
     */site-packages/
 
 [report]

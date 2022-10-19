@@ -4,6 +4,7 @@ import jax.numpy as jnp
 import jax.scipy.special as spec
 import scipy.optimize as sopt
 from jax import jit, nn, random
+from jax import lax
 
 
 def logdet(A):
@@ -39,7 +40,25 @@ class ELBOResults(NamedTuple):
     negKL_gamma: Union[float, jnp.ndarray]
 
     def __str__(self):
-        return f"ELBO = {self.elbo} | E_ll = {self.E_ll} | -KL[Z] = {self.negKL_z} | -KL[W] = {self.negKL_w} | -KL[G] = {self.negKL_gamma}"
+        return (
+            f"ELBO = {self.elbo} | E_ll = {self.E_ll} | -KL[Z] = {self.negKL_z} |"
+            f" -KL[W] = {self.negKL_w} | -KL[G] = {self.negKL_gamma}"
+        )
+
+
+class _FactorLoopResults(NamedTuple):
+    X: jnp.ndarray
+    W: jnp.ndarray
+    EZZ: jnp.ndarray
+    params: ModelParams
+
+
+class _EffectLoopResults(NamedTuple):
+    E_zzk: jnp.ndarray
+    RtZk: jnp.ndarray
+    Wk: jnp.ndarray
+    k: int
+    params: ModelParams
 
 
 class SuSiEPCAResults(NamedTuple):
@@ -280,32 +299,67 @@ def _inner_loop(X, params):
     # use posterior mean of Z, W, and Alpha to calculate residuals
     W = jnp.sum(params.mu_w * params.alpha, axis=0)
     E_ZZ = params.mu_z.T @ params.mu_z + n_dim * params.var_z
+
+    # update effect precision via MLE
     params = update_tau0_mle(params)
 
-    # update locals (W, Gamma)
-    for k in range(z_dim):
-        E_zpzk = jnp.delete(E_ZZ[k], k)
-        E_zzk = E_ZZ[k, k]
-        Wk = W[k, :]
-        Wnk = jnp.delete(W, k, axis=0)
-        RtZk = params.mu_z[:, k] @ X - Wnk.T @ E_zpzk
+    # update locals (W, alpha)
+    init_loop_param = _FactorLoopResults(X, W, E_ZZ, params)
+    _, W, _, params = lax.fori_loop(0, z_dim, _factor_loop, init_loop_param)
 
-        for l in range(l_dim):
-            Wkl = Wk - (params.mu_w[l, k] * params.alpha[l, k])
-
-            E_RtZk = RtZk - E_zzk * Wkl
-            params = update_w(E_RtZk, E_zzk, params, k, l)
-            params = update_alpha_bf(E_RtZk, E_zzk, params, k, l)
-
-            Wk = Wkl + (params.mu_w[l, k] * params.alpha[l, k])
-
+    # update factor parameters
     params = update_z(X, params)
+
+    # update precision parameters via MLE
     params = update_tau(X, params)
 
     # compute elbo
     elbo_tmp = compute_elbo(X, params)
 
     return W, elbo_tmp, params
+
+
+def _factor_loop(kdx: int, loop_params: _FactorLoopResults) -> _FactorLoopResults:
+    X, W, E_ZZ, params = loop_params
+
+    l_dim, _, _ = params.mu_w.shape
+    _, z_dim = params.mu_z.shape
+
+    # sufficient stats for inferring downstream w_kl/alpha_kl
+    not_kdx = jnp.where(jnp.arange(z_dim) != kdx, size=z_dim - 1)
+    E_zpzk = E_ZZ[kdx][not_kdx]
+    E_zzk = E_ZZ[kdx, kdx]
+    Wk = W[kdx, :]
+    Wnk = W[not_kdx]
+    RtZk = params.mu_z[:, kdx] @ X - Wnk.T @ E_zpzk
+
+    # update over each of L effects
+    init_loop_param = _EffectLoopResults(E_zzk, RtZk, Wk, kdx, params)
+    _, _, Wk, _, params = lax.fori_loop(
+        0,
+        l_dim,
+        _effect_loop,
+        init_loop_param,
+    )
+
+    return loop_params._replace(W=W.at[kdx].set(Wk), params=params)
+
+
+def _effect_loop(ldx: int, effect_params: _EffectLoopResults) -> _EffectLoopResults:
+    E_zzk, RtZk, Wk, kdx, params = effect_params
+
+    # remove current kl'th effect and update its expected residual
+    Wkl = Wk - (params.mu_w[ldx, kdx] * params.alpha[ldx, kdx])
+    E_RtZk = RtZk - E_zzk * Wkl
+
+    # update conditional w_kl and alpha_kl based on current residual
+    params = update_w(E_RtZk, E_zzk, params, kdx, ldx)
+    params = update_alpha_bf(E_RtZk, E_zzk, params, kdx, ldx)
+
+    # update marginal w_kl
+    Wk = Wkl + (params.mu_w[ldx, kdx] * params.alpha[ldx, kdx])
+
+    return effect_params._replace(Wk=Wk, params=params)
 
 
 def susie_pca(
@@ -315,6 +369,7 @@ def susie_pca(
     seed: int = 0,
     max_iter: int = 100,
     tol: float = 1e-3,
+    verbose: bool = True,
 ) -> SuSiEPCAResults:
     """
 
@@ -325,6 +380,7 @@ def susie_pca(
         seed:
         max_iter:
         tol:
+        verbose:
 
     Returns:
 
@@ -340,18 +396,18 @@ def susie_pca(
     elbo = -5e25
     for idx in range(1, max_iter + 1):
 
+        #  core loop for inference
         W, elbo_res, params = _inner_loop(X, params)
 
-        print(f"Iter [{idx}] | {elbo_res}")
+        if verbose:
+            print(f"Iter [{idx}] | {elbo_res}")
 
         diff = elbo_res.elbo - elbo
-        if diff < 0:
+        if diff < 0 and verbose:
             print(f"Bug alert! Diff between elbo[{idx - 1}] and elbo[{idx}] = {diff}")
         if jnp.fabs(diff) < tol:
-            print(f"Elbo diff tolerance reached at iteration {idx}")
-            break
-        if idx == max_iter:
-            print("Maximum Iteration reached")
+            if verbose:
+                print(f"Elbo diff tolerance reached at iteration {idx}")
             break
 
         elbo = elbo_res.elbo
