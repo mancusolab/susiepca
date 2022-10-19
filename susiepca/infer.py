@@ -4,6 +4,7 @@ import jax.numpy as jnp
 import jax.scipy.special as spec
 import scipy.optimize as sopt
 from jax import jit, lax, nn, random
+from sklearn.decomposition import PCA
 
 __all__ = [
     "ModelParams",
@@ -74,19 +75,29 @@ class SuSiEPCAResults(NamedTuple):
     elbo: ELBOResults
 
 
-def init_params(rng_key, n_dim, p_dim, z_dim, l_dim):
-    tau = 10.0
-    tau_0 = jnp.ones((l_dim, z_dim))
+def init_params(rng_key,X, z_dim, l_dim):
 
-    rng_key, mu_key, var_key = random.split(rng_key, 3)
-    init_mu_z = random.normal(mu_key, shape=(n_dim, z_dim))
+    tau = 10
+
+    tau_0 = jnp.ones((l_dim,z_dim))
+
+    n_dim,p_dim = X.shape
+
+    rng_key, mu_key, var_key,muw_key, varw_key = random.split(rng_key, 5)
+
+    #run PCA and extract weights and latent
+    pca = PCA(n_components=z_dim)
+    init_mu_z = pca.fit_transform(X)
+    #pc_weights=pca.components_
+
+
+
+    #init_mu_z = random.normal(mu_key, shape=(n_dim, z_dim))
     init_var_z = jnp.diag(random.normal(var_key, shape=(z_dim,)) ** 2)
 
-    rng_key, mu_key, var_key = random.split(rng_key, 3)
-    init_mu_w = random.normal(mu_key, shape=(l_dim, z_dim, p_dim)) * 1e-3
-
+    init_mu_w = random.normal(muw_key, shape=(l_dim, z_dim, p_dim))*1e-3
     # suppose each w_kl has a specific variance term
-    init_var_w = (1 / tau_0) * (random.normal(var_key, shape=(l_dim, z_dim))) ** 2
+    init_var_w = (1 / tau_0) * (random.normal(varw_key, shape=(l_dim, z_dim))) ** 2
 
     rng_key, alpha_key = random.split(rng_key, 2)
     init_alpha = random.dirichlet(
@@ -105,7 +116,6 @@ def init_params(rng_key, n_dim, p_dim, z_dim, l_dim):
         tau_0,
         pi=pi,
     )
-
 
 def compute_W_moment(params):
     # l_dim, z_dim, p_dim = params.mu_w.shape
@@ -397,7 +407,7 @@ def susie_pca(
 
     # initialize PRNGkey and params
     rng_key = random.PRNGKey(seed)
-    params = init_params(rng_key, n_dim, p_dim, z_dim, l_dim)
+    params = init_params(rng_key, X, z_dim, l_dim)
 
     # run inference
     elbo = -5e25
