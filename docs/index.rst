@@ -2,7 +2,7 @@
 SuSiE-PCA
 ======
 
-Heritability estimation from admixture mapping summary statistics
+TBD
 
 .. note::
 
