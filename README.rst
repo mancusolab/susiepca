@@ -34,18 +34,21 @@ SuSiE-PCA
 ========
 
 
-    SuSiE PCA is a scalable Bayesian variable selection technique for principal component analysis
+    SuSiE PCA is a scalable Bayesian variable selection technique for sparse principal component analysis
 
 
-SuSiE PCA is the abbreviation for the sum of single effects model in principal component analysis (SuSiE PCA). We develop SuSiE PCA for an efficient variable selection in PCA when dealing with high dimensional data with sparsity, and for quantifying uncertainty in selected variables through posterior inclusion probabilities (PIPs). 
+SuSiE PCA is the abbreviation for the sum of single effects model in principal component analysis (SuSiE PCA). We develop SuSiE PCA for an efficient variable selection in PCA when dealing with high dimensional data with sparsity, and for quantifying uncertainty of contributing features for each latent component through posterior inclusion probabilities (PIPs). 
 
-Here we introduce how to install SuSiE PCA and implement it through the simulated data set in python.
+Here we introduce how to install SuSiE PCA and show the example of implementing it on the simulated data set in python.
 
 
 ========
 Quick start
 ========
 
+Install SuSiE PCA
+====
+The source code for SuSiE PCA is written fully in python 3.8. Follow these steps to quickly get started using SuSiE PCA.
 
 .. _pyscaffold-notes:
 
