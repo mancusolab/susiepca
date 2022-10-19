@@ -3,8 +3,7 @@ from typing import NamedTuple, Union
 import jax.numpy as jnp
 import jax.scipy.special as spec
 import scipy.optimize as sopt
-from jax import jit, nn, random
-from jax import lax
+from jax import jit, lax, nn, random
 
 
 def logdet(A):
@@ -103,13 +102,13 @@ def compute_W_moment(params):
     # l_dim, z_dim, p_dim = params.mu_w.shape
 
     # tr(V[w_k]) = sum_l tr(V[w_kl]) =
-    #   sum_l sum_i [(E[w_kl^2 | gamma_kli = 1] * E[gamma_kl]) + (E[w_kl | gamma_kli = 1] * E[gamma_kl]) ** 2
+    # sum_l sum_i (E[w_kl^2 | gamma_kli = 1] * E[gamma_kl]) + (E[w_kl | gamma_kli = 1] * E[gamma_kl]) ** 2 # noqa: E501
     # mu**2 * a - mu**2 * a * a = mu**2 * a * (1 - a) = mu**2 * var[a]
     # V[w_kl] = var[w] * E[a] + E[w]*var[a]
     # V[Y] = E_X[V[Y | X]] + V_X[E[Y | X]]
     trace_var = jnp.sum(
         params.var_w[:, :, jnp.newaxis] * params.alpha
-        + (params.mu_w**2 * params.alpha * (1 - params.alpha)),
+        + (params.mu_w ** 2 * params.alpha * (1 - params.alpha)),
         axis=(-1, 0),
     )
 
@@ -120,29 +119,29 @@ def compute_W_moment(params):
 
 
 # update w
-def update_w(RtZk, E_zzk, params, k, l):
+def update_w(RtZk, E_zzk, params, kdx, ldx):
     # n_dim, z_dim = params.mu_z.shape
 
     # calculate update_var_w as the new V[w | gamma]
     # suppose indep between w_k
-    update_var_wkl = jnp.reciprocal(params.tau * E_zzk + params.tau_0[l, k])
+    update_var_wkl = jnp.reciprocal(params.tau * E_zzk + params.tau_0[ldx, kdx])
 
     # calculate update_mu_w as the new E[w | gamma]
     update_mu_wkl = params.tau * update_var_wkl * RtZk
 
     return params._replace(
-        mu_w=params.mu_w.at[l, k].set(update_mu_wkl),
-        var_w=params.var_w.at[l, k].set(update_var_wkl),
+        mu_w=params.mu_w.at[ldx, kdx].set(update_mu_wkl),
+        var_w=params.var_w.at[ldx, kdx].set(update_var_wkl),
     )
 
 
 def log_bf_np(z, s2, s0):
-    return 0.5 * (jnp.log(s2) - jnp.log(s2 + 1 / s0)) + 0.5 * z**2 * (
+    return 0.5 * (jnp.log(s2) - jnp.log(s2 + 1 / s0)) + 0.5 * z ** 2 * (
         (1 / s0) / (s2 + 1 / s0)
     )
 
 
-def update_tau0(RtZk, E_zzk, params, k, l):
+def update_tau0(RtZk, E_zzk, params, kdx, ldx):
     Z_s = (RtZk / E_zzk) * jnp.sqrt(E_zzk * params.tau)
     s2_s = 1 / (E_zzk * params.tau)
 
@@ -153,7 +152,7 @@ def update_tau0(RtZk, E_zzk, params, k, l):
 
     res = sopt.minimize_scalar(min_obj, method="bounded", bounds=(-30, 10))
     new_s20_s = jnp.exp(res.x)
-    params = params._replace(tau_0=params.tau_0.at[l, k].set(new_s20_s))
+    params = params._replace(tau_0=params.tau_0.at[ldx, kdx].set(new_s20_s))
 
     return params
 
@@ -161,24 +160,24 @@ def update_tau0(RtZk, E_zzk, params, k, l):
 def update_tau0_mle(params):
     # l_dim, z_dim, p_dim = params.mu_w.shape
 
-    est_varw = params.mu_w**2 + params.var_w[:, :, jnp.newaxis]
+    est_varw = params.mu_w ** 2 + params.var_w[:, :, jnp.newaxis]
 
     u_tau_0 = jnp.sum(params.alpha, axis=-1) / jnp.sum(est_varw * params.alpha, axis=-1)
 
     return params._replace(tau_0=u_tau_0)
 
 
-def update_alpha_bf(RtZk, E_zzk, params, k, l):
+def update_alpha_bf(RtZk, E_zzk, params, kdx, ldx):
     Z_s = (RtZk / E_zzk) * jnp.sqrt(E_zzk * params.tau)
     s2_s = 1 / (E_zzk * params.tau)
-    s20_s = params.tau_0[l, k]
+    s20_s = params.tau_0[ldx, kdx]
 
     log_bf = log_bf_np(Z_s, s2_s, s20_s)
     log_alpha = jnp.log(params.pi) + log_bf
     alpha_kl = nn.softmax(log_alpha)
 
     params = params._replace(
-        alpha=params.alpha.at[l, k].set(alpha_kl),
+        alpha=params.alpha.at[ldx, kdx].set(alpha_kl),
     )
 
     return params
@@ -206,7 +205,7 @@ def update_tau(X, params):
 
     # expectation of log likelihood
     E_ss = (
-        jnp.sum(X**2)
+        jnp.sum(X ** 2)
         - 2 * jnp.trace(E_W @ X.T @ params.mu_z)
         + jnp.trace(E_ZZ @ E_WW)
     )
@@ -230,7 +229,7 @@ def compute_elbo(X, params) -> ELBOResults:
     # calculation tip: tr(A @ A.T) = tr(A.T @ A) = sum(A ** 2)
     # (X.T @ E[Z] @ E[W]) is p x p (big!); compute (E[W] @ X.T @ E[Z]) (k x k)
     E_ll = (-0.5 * params.tau) * (
-        jnp.sum(X**2)  # tr(X.T @ X)
+        jnp.sum(X ** 2)  # tr(X.T @ X)
         - 2 * jnp.trace(E_W @ X.T @ params.mu_z)  # tr(E[W] @ X.T @ E[Z])
         + jnp.trace(E_ZZ @ E_WW)  # tr(E[Z.T @ Z] @ E[W @ W.T])
     ) + 0.5 * n_dim * p_dim * jnp.log(
@@ -243,7 +242,7 @@ def compute_elbo(X, params) -> ELBOResults:
     # neg-KL for w
     # awkward indexing to get broadcast working
     klw_term1 = params.tau_0[:, :, jnp.newaxis] * (
-        params.var_w[:, :, jnp.newaxis] + params.mu_w**2
+        params.var_w[:, :, jnp.newaxis] + params.mu_w ** 2
     )
     klw_term2 = (
         klw_term1
@@ -314,16 +313,15 @@ def _inner_loop(X, params):
     params = update_tau(X, params)
 
     # compute elbo
-    elbo_tmp = compute_elbo(X, params)
+    elbo_res = compute_elbo(X, params)
 
-    return W, elbo_tmp, params
+    return W, elbo_res, params
 
 
 def _factor_loop(kdx: int, loop_params: _FactorLoopResults) -> _FactorLoopResults:
     X, W, E_ZZ, params = loop_params
 
-    l_dim, _, _ = params.mu_w.shape
-    _, z_dim = params.mu_z.shape
+    l_dim, z_dim, p_dim = params.mu_w.shape
 
     # sufficient stats for inferring downstream w_kl/alpha_kl
     not_kdx = jnp.where(jnp.arange(z_dim) != kdx, size=z_dim - 1)

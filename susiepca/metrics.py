@@ -3,7 +3,7 @@ import pandas as pd
 
 
 def mse(X, Xhat):
-    return jnp.sum((X - Xhat) ** 2) / jnp.sum(X**2)
+    return jnp.sum((X - Xhat) ** 2) / jnp.sum(X ** 2)
 
 
 def compute_largest_pip(pip, n, absol=False):

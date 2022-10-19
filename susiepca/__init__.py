@@ -1,6 +1,8 @@
+from importlib.metadata import PackageNotFoundError, version  # pragma: no cover
+
 from . import infer, metrics, sim
 
-from importlib.metadata import PackageNotFoundError, version  # pragma: no cover
+__all__ = ["infer", "metrics", "sim"]
 
 try:
     # Change here if project is renamed and does not equal the package name
