@@ -11,6 +11,7 @@ __all__ = [
     "ELBOResults",
     "SuSiEPCAResults",
     "compute_pip",
+    "compute_pve",
     "get_credset",
     "susie_pca",
 ]
@@ -73,6 +74,9 @@ class _EffectLoopResults(NamedTuple):
 class SuSiEPCAResults(NamedTuple):
     params: ModelParams
     elbo: ELBOResults
+    pve: jnp.ndarray
+    pip: jnp.ndarray
+    W: jnp.ndarray
 
 
 def init_params(rng_key, X, z_dim, l_dim):
@@ -307,6 +311,22 @@ def get_credset(params, rho=0.9):
     return cs
 
 
+def compute_pve(params):
+    n_dim, z_dim = params.mu_z.shape
+    W = jnp.sum(params.mu_w * params.alpha, axis=0)
+
+    z_dim, p_dim = W.shape
+
+    sk = jnp.zeros(z_dim)
+    for k in range(z_dim):
+        sk = sk.at[k].set(jnp.sum((params.mu_z[:, k, jnp.newaxis] * W[k, :]) ** 2))
+
+    s = jnp.sum(sk)
+    pve = sk / (s + p_dim * n_dim * (1 / params.tau))
+
+    return pve
+
+
 @jit
 def _inner_loop(X, params):
     n_dim, z_dim = params.mu_z.shape
@@ -426,5 +446,11 @@ def susie_pca(
             break
 
         elbo = elbo_res.elbo
+    # compute posterior mean loadings
+    W = jnp.sum(params.mu_w * params.alpha, axis=0)
+    # compute PVE
+    pve = compute_pve(params)
+    # compute PIPs
+    pip = compute_pip(params)
 
-    return SuSiEPCAResults(params, elbo_res)
+    return SuSiEPCAResults(params, elbo_res, pve, pip, W)
