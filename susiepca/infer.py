@@ -390,14 +390,13 @@ def susie_pca(
     """
 
     Args:
-        X:
-        z_dim:
-        l_dim:
-        seed:
-        max_iter:
-        tol:
+        X: The input data X should be a jax.numpy ndarray
+        z_dim: The latent factor dimension (K)
+        l_dim: The number of single effects in each factor (L)
+        seed: the random seed for initialization
+        max_iter: the maximum iterations
+        tol: the convergence criterion on ELBO
         verbose:
-
     Returns:
 
     """
