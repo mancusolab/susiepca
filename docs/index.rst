@@ -39,6 +39,8 @@ Contents
 
     Contributions & Help <contributing>
     Changelog <changelog>
+    Authors <authors>
+    License <license>
 
 
 Indices and tables

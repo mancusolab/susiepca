@@ -9,7 +9,7 @@
 
 import os
 import sys
-
+import shutil
 # -- Path setup --------------------------------------------------------------
 
 __location__ = os.path.dirname(__file__)
@@ -17,9 +17,42 @@ __location__ = os.path.dirname(__file__)
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
-sys.path.insert(0, os.path.join(__location__, "../src"))
+sys.path.insert(0, os.path.join(__location__, "../"))
 
 # -- General configuration ---------------------------------------------------
+# -- Run sphinx-apidoc -------------------------------------------------------
+# This hack is necessary since RTD does not issue `sphinx-apidoc` before running
+# `sphinx-build -b html . _build/html`. See Issue:
+# https://github.com/readthedocs/readthedocs.org/issues/1139
+# DON'T FORGET: Check the box "Install your project inside a virtualenv using
+# setup.py install" in the RTD Advanced Settings.
+# Additionally it helps us to avoid running apidoc manually
+
+try:  # for Sphinx >= 1.7
+    from sphinx.ext import apidoc
+except ImportError:
+    from sphinx import apidoc
+
+output_dir = os.path.join(__location__, "api")
+module_dir = os.path.join(__location__, "../susiepca")
+try:
+    shutil.rmtree(output_dir)
+except FileNotFoundError:
+    pass
+
+try:
+    import sphinx
+
+    cmd_line = f"sphinx-apidoc --implicit-namespaces -f -o {output_dir} {module_dir}"
+
+    args = cmd_line.split(" ")
+    if tuple(sphinx.__version__.split(".")) >= ("1", "7"):
+        # This is a rudimentary parse_version to avoid external dependencies
+        args = args[1:]
+
+    apidoc.main(args)
+except Exception as e:
+    print("Running `sphinx-apidoc` failed!\n{}".format(e))
 
 # If your documentation needs a minimal Sphinx version, state it here.
 # needs_sphinx = '1.0'
@@ -197,7 +230,7 @@ html_static_path = ["_static"]
 # html_file_suffix = None
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = "HAMSTA-doc"
+htmlhelp_basename = "SuSiE-PCA-doc"
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -214,7 +247,7 @@ latex_elements = {
 # Grouping the document tree into LaTeX files. List of tuples
 # (source start file, target name, title, author, documentclass [howto/manual]).
 latex_documents = [
-    ("index", "user_guide.tex", "HAMSTA Documentation", "tszfungc", "manual")
+    ("index", "user_guide.tex", "SuSiE-PCA Documentation", "MancusoLab", "manual")
 ]
 
 # The name of an image file (relative to this directory) to place at the top of

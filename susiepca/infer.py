@@ -5,6 +5,15 @@ import jax.scipy.special as spec
 import scipy.optimize as sopt
 from jax import jit, lax, nn, random
 
+__all__ = [
+    "ModelParams",
+    "ELBOResults",
+    "SuSiEPCAResults",
+    "compute_pip",
+    "get_credset",
+    "susie_pca",
+]
+
 
 def logdet(A):
     sign, ldet = jnp.linalg.slogdet(A)
