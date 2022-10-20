@@ -37,7 +37,7 @@ SuSiE-PCA
     SuSiE PCA is a scalable Bayesian variable selection technique for sparse principal component analysis
 
 
-SuSiE PCA is the abbreviation for the sum of single effects model in principal component analysis (SuSiE PCA). We develop SuSiE PCA for an efficient variable selection in PCA when dealing with high dimensional data with sparsity, and for quantifying uncertainty of contributing features for each latent component through posterior inclusion probabilities (PIPs). We implement the model with the JAX (https://github.com/google/jax) library developed by Google which enable the fast training on CPU, GPU or TPU. 
+SuSiE PCA is the abbreviation for the sum of single effects model in principal component analysis (SuSiE PCA). We develop SuSiE PCA for an efficient variable selection in PCA when dealing with high dimensional data with sparsity, and for quantifying uncertainty of contributing features for each latent component through posterior inclusion probabilities (PIPs). We implement the model with the [JAX] library developed by Google which enable the fast training on CPU, GPU or TPU. 
 
 Next we introduce how to install SuSiE PCA and show the example of implementing it on the simulated data set in python.
 
@@ -51,15 +51,11 @@ The source code for SuSiE PCA is written fully in python 3.8. Follow these steps
 
 1. Install the JAX through the following code. Here we provide the installation of CPU-only version of JAX. For the GPU version, check the JAX installation guide (https://github.com/google/jax).
 
-```python
+```bash
 pip install --upgrade pip
 pip install --upgrade "jax[cpu]"
 ```
 
-```python
-s = "Python syntax highlighting"
-print s
-```
 
 .. _pyscaffold-notes:
 
@@ -68,3 +64,5 @@ Note
 
 This project has been set up using PyScaffold 4.1.1. For details and usage
 information on PyScaffold see https://pyscaffold.org/.
+
+[JAX]: https://github.com/google/jax
