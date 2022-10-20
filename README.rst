@@ -72,11 +72,11 @@ Get Started with Example
 
    Z, W, X = sp.sim.generate_sim(seed = 0, l_dim = 40,n_dim = 150, p_dim =200, z_dim = 4, effect_size = 1)
 
-3. Input the simulation data set into SuSiE PCA with $K=4$ and $L=40$, or you can manipulate with those two parameters to check the model mis-specification performance.
+3. Input the simulation data set into SuSiE PCA with $K=4$ and $L=40$, or you can manipulate with those two parameters to check the model mis-specification performance. The max iteration is set to be 200, and here we use the principal components extracted from traditional PCA results as the initialization of mean of $Z$.
 
 .. code:: python
 
-   results = sp.infer.susie_pca(X, z_dim = 4, l_dim = 40, max_iter=200)
+   results = sp.infer.susie_pca(X, z_dim = 4, l_dim = 40, max_iter=200, PCA_init = True)
 
 The returned "results" contain 5 different objects:
 
