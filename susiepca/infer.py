@@ -416,13 +416,16 @@ def susie_pca(
         seed: the random seed for initialization
         max_iter: the maximum iterations
         tol: the convergence criterion on ELBO
-        verbose:
+        verbose: show the log information (ELBO value) in each iteration
     Returns:
 
     """
     n_dim, p_dim = X.shape
     # TODO: error checking on z_dim, l_dim wrt n_dim, p_dim, positive, etc
-
+    if l_dim > p_dim:
+        raise ValueError(f"l should be less than p: received l = {l_dim},p = {p_dim}")
+    if z_dim > n_dim:
+        raise ValueError(f"k should be less than n: received k = {z_dim},n = {n_dim}")
     # initialize PRNGkey and params
     rng_key = random.PRNGKey(seed)
     params = init_params(rng_key, X, z_dim, l_dim)
