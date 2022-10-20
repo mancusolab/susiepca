@@ -51,10 +51,11 @@ The source code for SuSiE PCA is written fully in python 3.8. Follow these steps
 
 1. Install the JAX through the following code. Here we provide the installation of CPU-only version of JAX. For the GPU version, check the JAX installation guide (https://github.com/google/jax).
 
-```python
-pip install --upgrade pip
-pip install --upgrade "jax[cpu]"
-```
+::
+   
+   pip install --upgrade pip
+   pip install --upgrade "jax[cpu]"
+
 
 
 .. _pyscaffold-notes:
