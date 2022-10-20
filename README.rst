@@ -72,12 +72,26 @@ Get Started with Example
 
    import susiepca as sp
 
-2. Generate a simulation data set according to the description in Simulation section from our paper. :math:` Z_{N \\times K} ` is the simulated factors, W is the simulated loading matrix, and the X is the simulation data set
+2. Generate a simulation data set according to the description in Simulation section from our paper. $Z_{N \\times K}$ is the simulated factors matrix, $W_{K \\times P}$ is the simulated loading matrix, and the $X_{N \\times P}$ is the simulation data set that has N observations with P features.
 
 ::
 
    Z, W, X = sp.sim.generate_sim(seed = 0, l_dim = 40,n_dim = 150, p_dim =200, z_dim = 4, effect_size = 1)
-   
+
+3. Input the simulation data set into SuSiE PCA with $K=4$ and $L=40$, or you can manipulate with those two parameters to check the model mis-specification performance. 
+
+::
+
+   results = sp.infer.susie_pca(X, z_dim = 4, l_dim = 40, max_iter=200)
+
+The returned "results" contain 5 different objects:
+
+- params: an dictionary that saves all the updated parameters from the SuSiE PCA.
+- elbo_res: the value of evidence lower bound (ELBO) from the last iteration.
+- pve: a length $K$ ndarray contains the percent of variance explained (PVE) by each component
+- pip: the ndarray in dimension of $K$ by $P$ that contains the posterior inclusion probabilities of each feature contribution to each factor.
+- W: the posterior mean of loadings which is also a ndarray in dimension of $K$ by $P$ 
+
 
 .. _pyscaffold-notes:
 
