@@ -72,7 +72,7 @@ Get Started with Example
 
    import susiepca as sp
 
-2. Generate a simulation data set according to the description in Simulation section from our paper. $Z_{N \\times K}$ is the simulated factors matrix, $W_{K \\times P}$ is the simulated loading matrix, and the $X_{N \\times P}$ is the simulation data set that has N observations with P features.
+2. Generate a simulation data set according to the description in Simulation section from our paper. $Z_{N \\times K}$ is the simulated factors matrix, $W_{K \\times P}$ is the simulated loading matrix, and the $X_{N \\times P}$ is the simulation data set that has $N$ observations with $P$ features.
 
 ::
 
@@ -103,6 +103,16 @@ The returned "results" contain 5 different objects:
    #Heatmap of estimate loading matrix
    W_hat = results.W
    sns.heatmap(W_hat, cmap = div,fmt = ".2f",center = 0)
+
+To mathmatically compute the Procrustes error of the estimate loading matrix, you need to install the `Procruste <https://procrustes.readthedocs.io/en/latest/usr_doc_installization.html>`_ package.
+
+::
+   
+   pip install qc-procrustes
+   import procrutes
+   #peform procruste transformation
+   proc_trans_susie = procrustes.orthogonal(np.asarray(W_hat.T),np.asarray(W.T),scale=True)
+   print(f"The Procrustes error for the loading matrix is {proc_trans_susie.error}")
 
 .. _pyscaffold-notes:
 
