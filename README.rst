@@ -99,11 +99,10 @@ The returned "results" contain 5 different objects:
    W_hat = results.W
    sns.heatmap(W_hat, cmap = div,fmt = ".2f",center = 0)
 
-To mathmatically compute the Procrustes error of the estimate loading matrix, you need to install the `Procruste <https://procrustes.readthedocs.io/en/latest/usr_doc_installization.html>`_ package.
+To mathmatically compute the Procrustes error of the estimate loading matrix, you need to install the Procruste (see `Installation guide <https://procrustes.readthedocs.io/en/latest/usr_doc_installization.html>`_ ).
 
 .. code:: python
 
-   pip install qc-procrustes
    import procrutes
    #peform procruste transformation
    proc_trans_susie = procrustes.orthogonal(np.asarray(W_hat.T),np.asarray(W.T),scale=True)
