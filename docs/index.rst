@@ -2,25 +2,14 @@
 SuSiE-PCA
 ======
 
-TBD
+    SuSiE PCA is a scalable Bayesian variable selection technique for sparse principal component analysis
 
-.. note::
 
-    This is the main page of your project's `Sphinx`_ documentation.
-    It is formatted in `reStructuredText`_. Add additional pages
-    by creating rst-files in ``docs`` and adding them to the `toctree`_ below.
-    Use then `references`_ in order to link them from this page, e.g.
-    :ref:`authors` and :ref:`changes`.
-
-    It is also possible to refer to the documentation of other Python packages
-    with the `Python domain syntax`_. By default you can reference the
-    documentation of `Sphinx`_, `Python`_, `NumPy`_, `SciPy`_, `matplotlib`_,
-    `Pandas`_, `Scikit-Learn`_. You can add more by extending the
-    ``intersphinx_mapping`` in your Sphinx's ``conf.py``.
-
-    The pretty useful extension `autodoc`_ is activated by default and lets
-    you include documentation from docstrings. Docstrings can be written in
-    `Google style`_ (recommended!), `NumPy style`_ and `classical style`_.
+SuSiE PCA is the abbreviation for the sum of single effects model in principal component analysis (SuSiE PCA). We
+develop SuSiE PCA for an efficient variable selection in PCA when dealing with high dimensional data with sparsity, and
+for quantifying uncertainty of contributing features for each latent component through posterior inclusion probabilities
+(PIPs). We implement the model with the `JAX <https://github.com/google/jax>`_ library developed by Google which enable
+the fast training on CPU, GPU or TPU.
 
 
 Contents
