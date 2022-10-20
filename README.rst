@@ -52,11 +52,32 @@ The source code for SuSiE PCA is written fully in python 3.8. Follow these steps
 1. Install the JAX through the following code. Here we provide the installation of CPU-only version of JAX. For the GPU version, check the JAX installation guide (https://github.com/google/jax).
 
 ::
-   
+
    pip install --upgrade pip
    pip install --upgrade "jax[cpu]"
 
+2. Then you can clone this github repository in the desired directorty through:
 
+::
+
+   git clone git@github.com:mancusolab/susiepca.git
+   
+
+Get Started with Example
+====
+
+1. Create a python environment in the cloned repository, then simply import the SuSiE PCA
+
+::
+
+   import susiepca as sp
+
+2. Generate a simulation data set according to the description in Simulation section from our paper. :math:` Z_{N \\times K} ` is the simulated factors, W is the simulated loading matrix, and the X is the simulation data set
+
+::
+
+   Z, W, X = sp.sim.generate_sim(seed = 0, l_dim = 40,n_dim = 150, p_dim =200, z_dim = 4, effect_size = 1)
+   
 
 .. _pyscaffold-notes:
 
