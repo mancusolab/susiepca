@@ -100,7 +100,7 @@ copyright = "2022, MancusoLab"
 # If you don’t need the separation provided between version and release,
 # just set them both to the same value.
 try:
-    from hamsta import __version__ as version
+    from susiepca import __version__ as version
 except ImportError:
     version = ""
 

@@ -29,9 +29,9 @@
 
 |
 
-========
+=========
 SuSiE-PCA
-========
+=========
 
 
     SuSiE PCA is a scalable Bayesian variable selection technique for sparse principal component analysis
@@ -41,12 +41,12 @@ SuSiE PCA is the abbreviation for the sum of single effects model in principal c
 
 Next we introduce how to install SuSiE PCA and show the example of implementing it on the simulated data set in python.
 
-========
+===========
 Quick start
-========
+===========
 
 Install SuSiE PCA
-====
+=================
 The source code for SuSiE PCA is written fully in python 3.8. Follow these steps to quickly get started using SuSiE PCA.
 
 1. Install the JAX through the following code. Here we provide the installation of CPU-only version of JAX. For the GPU version, check the JAX installation guide (https://github.com/google/jax).
@@ -64,7 +64,7 @@ The source code for SuSiE PCA is written fully in python 3.8. Follow these steps
 
 
 Get Started with Example
-====
+========================
 
 1. Create a python environment in the cloned repository, then simply import the SuSiE PCA
 
