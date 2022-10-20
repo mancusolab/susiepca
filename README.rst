@@ -92,6 +92,17 @@ The returned "results" contain 5 different objects:
 - pip: the ndarray in dimension of $K$ by $P$ that contains the posterior inclusion probabilities of each feature contribution to each factor.
 - W: the posterior mean of loadings which is also a ndarray in dimension of $K$ by $P$ 
 
+4. To examine the model performance, one straitforward way is to draw and compare the heatmap of the true loading matrix and estimate loading matrix using seaborn:
+
+::
+
+   import seaborn as sns
+   div = sns.diverging_palette(250, 10, as_cmap=True)
+   #Heatmap of true loading matrix
+   sns.heatmap(W, cmap = div,fmt = ".2f",center = 0)
+   #Heatmap of estimate loading matrix
+   W_hat = results.W
+   sns.heatmap(W_hat, cmap = div,fmt = ".2f",center = 0)
 
 .. _pyscaffold-notes:
 
