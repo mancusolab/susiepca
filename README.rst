@@ -82,9 +82,9 @@ The returned "results" contain 5 different objects:
 
 - params: an dictionary that saves all the updated parameters from the SuSiE PCA.
 - elbo_res: the value of evidence lower bound (ELBO) from the last iteration.
-- pve: a length $K$ ndarray contains the percent of variance explained (PVE) by each component
-- pip: the ndarray in dimension of $K$ by $P$ that contains the posterior inclusion probabilities of each feature contribution to each factor.
-- W: the posterior mean of loading matrix which is also a ndarray in dimension of $K$ by $P$
+- pve: a length $K$ ndarray contains the percent of variance explained (PVE) by each component.
+- pip: the $K$ by $P$ ndarray that contains the posterior inclusion probabilities (PIPs) of each feature contribution to the factor.
+- W: the posterior mean of loading matrix which is also a $K$ by $P$ ndarray.
 
 4. To examine the model performance, one straitforward way is to draw and compare the heatmap of the true loading matrix and estimate loading matrix using seaborn:
 
