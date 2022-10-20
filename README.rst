@@ -91,13 +91,16 @@ The returned "results" contain 5 different objects:
 .. code:: python
 
    import seaborn as sns
-   #specify the plate for heatmap
+   #specify the palatte for heatmap
    div = sns.diverging_palette(250, 10, as_cmap=True)
    #Heatmap of true loading matrix
    sns.heatmap(W, cmap = div,fmt = ".2f",center = 0)
    #Heatmap of estimate loading matrix
    W_hat = results.W
    sns.heatmap(W_hat, cmap = div,fmt = ".2f",center = 0)
+   #Heatmap of PIPs
+   pip = results.pip
+   sns.heatmap(pip, cmap = div,fmt = ".2f",center = 0)
 
 To mathmatically compute the Procrustes error of the estimate loading matrix, you need to install the Procruste package to solve the rotation problem (see `Installation guide <https://procrustes.readthedocs.io/en/latest/usr_doc_installization.html>`_ for Procruste method). Then one can compute the Procrustes error as following:
 
