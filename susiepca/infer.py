@@ -79,7 +79,7 @@ class SuSiEPCAResults(NamedTuple):
     W: jnp.ndarray
 
 
-def init_params(rng_key, X, z_dim, l_dim):
+def init_params(rng_key, X, z_dim, l_dim, PCA_init=True):
 
     tau = 10
 
@@ -90,11 +90,13 @@ def init_params(rng_key, X, z_dim, l_dim):
     rng_key, mu_key, var_key, muw_key, varw_key = random.split(rng_key, 5)
 
     # run PCA and extract weights and latent
-    pca = PCA(n_components=z_dim)
-    init_mu_z = pca.fit_transform(X)
-    # pc_weights=pca.components_
+    if PCA_init:
+        pca = PCA(n_components=z_dim)
+        init_mu_z = pca.fit_transform(X)
+    # random initialization
+    else:
+        init_mu_z = random.normal(mu_key, shape=(n_dim, z_dim))
 
-    # init_mu_z = random.normal(mu_key, shape=(n_dim, z_dim))
     init_var_z = jnp.diag(random.normal(var_key, shape=(z_dim,)) ** 2)
 
     init_mu_w = random.normal(muw_key, shape=(l_dim, z_dim, p_dim)) * 1e-3
@@ -406,6 +408,7 @@ def susie_pca(
     max_iter: int = 100,
     tol: float = 1e-3,
     verbose: bool = True,
+    PCA_init: bool = True,
 ) -> SuSiEPCAResults:
     """
 
@@ -417,18 +420,23 @@ def susie_pca(
         max_iter: the maximum iterations
         tol: the convergence criterion on ELBO
         verbose: show the log information (ELBO value) in each iteration
+        PCA_init: Whether use the PCA results as the initialization for mean of Z
     Returns:
-
+        params: an dictionary that saves all the updated parameters
+        elbo_res: the value of evidence lower bound (ELBO) from the last iteration
+        pve: a length K ndarray contains the percent of variance explained (PVE)
+        pip: posterior inclusion probabilities (PIPs), K by P ndarray
+        W: the posterior mean of loading matrix which is also a K by P ndarray
     """
     n_dim, p_dim = X.shape
-    # TODO: error checking on z_dim, l_dim wrt n_dim, p_dim, positive, etc
+
     if l_dim > p_dim:
         raise ValueError(f"l should be less than p: received l = {l_dim},p = {p_dim}")
     if z_dim > n_dim:
         raise ValueError(f"k should be less than n: received k = {z_dim},n = {n_dim}")
     # initialize PRNGkey and params
     rng_key = random.PRNGKey(seed)
-    params = init_params(rng_key, X, z_dim, l_dim)
+    params = init_params(rng_key, X, z_dim, l_dim, PCA_init)
 
     # run inference
     elbo = -5e25
