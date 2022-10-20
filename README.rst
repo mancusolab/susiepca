@@ -37,7 +37,7 @@ SuSiE-PCA
     SuSiE PCA is a scalable Bayesian variable selection technique for sparse principal component analysis
 
 
-SuSiE PCA is the abbreviation for the sum of single effects model in principal component analysis (SuSiE PCA). We develop SuSiE PCA for an efficient variable selection in PCA when dealing with high dimensional data with sparsity, and for quantifying uncertainty of contributing features for each latent component through posterior inclusion probabilities (PIPs). We implement the model with the `JAX <https://github.com/google/jax>`_ library developed by Google which enable the fast training on CPU, GPU or TPU. 
+SuSiE PCA is the abbreviation for the sum of single effects model in principal component analysis (SuSiE PCA). We develop SuSiE PCA for an efficient variable selection in PCA when dealing with high dimensional data with sparsity, and for quantifying uncertainty of contributing features for each latent component through posterior inclusion probabilities (PIPs). We implement the model with the `JAX <https://github.com/google/jax>`_ library developed by Google which enable the fast training on CPU, GPU or TPU.
 
 Next we introduce how to install SuSiE PCA and show the example of implementing it on the simulated data set in python.
 
@@ -61,7 +61,7 @@ The source code for SuSiE PCA is written fully in python 3.8. Follow these steps
 ::
 
    git clone git@github.com:mancusolab/susiepca.git
-   
+
 
 Get Started with Example
 ====
@@ -78,7 +78,7 @@ Get Started with Example
 
    Z, W, X = sp.sim.generate_sim(seed = 0, l_dim = 40,n_dim = 150, p_dim =200, z_dim = 4, effect_size = 1)
 
-3. Input the simulation data set into SuSiE PCA with $K=4$ and $L=40$, or you can manipulate with those two parameters to check the model mis-specification performance. 
+3. Input the simulation data set into SuSiE PCA with $K=4$ and $L=40$, or you can manipulate with those two parameters to check the model mis-specification performance.
 
 .. code:: python
 
@@ -90,7 +90,7 @@ The returned "results" contain 5 different objects:
 - elbo_res: the value of evidence lower bound (ELBO) from the last iteration.
 - pve: a length $K$ ndarray contains the percent of variance explained (PVE) by each component
 - pip: the ndarray in dimension of $K$ by $P$ that contains the posterior inclusion probabilities of each feature contribution to each factor.
-- W: the posterior mean of loadings which is also a ndarray in dimension of $K$ by $P$ 
+- W: the posterior mean of loadings which is also a ndarray in dimension of $K$ by $P$
 
 4. To examine the model performance, one straitforward way is to draw and compare the heatmap of the true loading matrix and estimate loading matrix using seaborn:
 
@@ -108,7 +108,7 @@ The returned "results" contain 5 different objects:
 To mathmatically compute the Procrustes error of the estimate loading matrix, you need to install the `Procruste <https://procrustes.readthedocs.io/en/latest/usr_doc_installization.html>`_ package.
 
 .. code:: python
-   
+
    pip install qc-procrustes
    import procrutes
    #peform procruste transformation
@@ -118,7 +118,7 @@ To mathmatically compute the Procrustes error of the estimate loading matrix, yo
 We can also show the relative root mean square error (RRMSE) that assess the model prediction performance
 
 .. code:: python
-   
+
    from susiepca import metrics
    #compute the predicted data
    X_hat = results.params.mu_z @ W_hat
@@ -138,5 +138,3 @@ Note
 
 This project has been set up using PyScaffold 4.1.1. For details and usage
 information on PyScaffold see https://pyscaffold.org/.
-
-
