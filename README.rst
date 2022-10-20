@@ -49,7 +49,7 @@ Install SuSiE PCA
 =================
 The source code for SuSiE PCA is written fully in python 3.8 with JAX (see `Installation guide <https://github.com/google/jax#installation>`_ for JAX). Follow the code provided below to quickly get started using SuSiE PCA. can clone this github repository in the desired directorty and install the SuSiE PCA
 
-.. code:: python
+.. code:: bash
 
    git clone git@github.com:mancusolab/susiepca.git
    cd susiepca
