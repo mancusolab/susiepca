@@ -99,16 +99,17 @@ The returned "results" contain 5 different objects:
    W_hat = results.W
    sns.heatmap(W_hat, cmap = div,fmt = ".2f",center = 0)
 
-To mathmatically compute the Procrustes error of the estimate loading matrix, you need to install the Procruste (see `Installation guide <https://procrustes.readthedocs.io/en/latest/usr_doc_installization.html>`_ ).
+To mathmatically compute the Procrustes error of the estimate loading matrix, you need to install the Procruste package to solve the rotation problem (see `Installation guide <https://procrustes.readthedocs.io/en/latest/usr_doc_installization.html>`_ for Procruste method). Then one can compute the Procrustes error as following:
 
 .. code:: python
 
    import procrutes
+   import numpy as np
    #peform procruste transformation
    proc_trans_susie = procrustes.orthogonal(np.asarray(W_hat.T),np.asarray(W.T),scale=True)
    print(f"The Procrustes error for the loading matrix is {proc_trans_susie.error}")
 
-We can also show the relative root mean square error (RRMSE) that assess the model prediction performance
+You can also calculate the relative root mean square error (RRMSE) to assess the model prediction performance
 
 .. code:: python
 
