@@ -66,7 +66,7 @@ Get Started with Example
 
    import susiepca as sp
 
-2. Generate a simulation data set according to the description in Simulation section from our paper. $Z_{N \\times K}$ is the simulated factors matrix, $W_{K \\times P}$ is the simulated loading matrix, and the $X_{N \\times P}$ is the simulation data set that has $N$ observations with $P$ features.
+2. Generate a simulation data set according to the description in **Simulation** section from our paper. $Z_{N \\times K}$ is the simulated factors matrix, $W_{K \\times P}$ is the simulated loading matrix, and the $X_{N \\times P}$ is the simulation data set that has $N$ observations with $P$ features.
 
 .. code:: python
 
@@ -84,7 +84,7 @@ The returned "results" contain 5 different objects:
 - elbo_res: the value of evidence lower bound (ELBO) from the last iteration.
 - pve: a length $K$ ndarray contains the percent of variance explained (PVE) by each component
 - pip: the ndarray in dimension of $K$ by $P$ that contains the posterior inclusion probabilities of each feature contribution to each factor.
-- W: the posterior mean of loadings which is also a ndarray in dimension of $K$ by $P$
+- W: the posterior mean of loading matrix which is also a ndarray in dimension of $K$ by $P$
 
 4. To examine the model performance, one straitforward way is to draw and compare the heatmap of the true loading matrix and estimate loading matrix using seaborn:
 
