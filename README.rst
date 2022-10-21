@@ -158,7 +158,7 @@ Notes
    jax.config.update("jax_enable_x64", True)
 
 Similarly, the default computation device for `JAX <https://github.com/google/jax>`_ is set by environment variables
-(see `here https://jax.readthedocs.io/en/latest/faq.html#faq-data-placement`_). To change this programmatically before
+(see `here <https://jax.readthedocs.io/en/latest/faq.html#faq-data-placement>`_). To change this programmatically before
 calling `susiepca` add the following code:
 
 .. code:: python
