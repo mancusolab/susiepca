@@ -19,6 +19,7 @@ def mse(X: jnp.ndarray, Xhat: jnp.ndarray):
 def get_credset(params, rho=0.9):
 
     """
+
     Args:
         params: the dictionary return from the function susie_pca
         rho: the level from credible set, should ranged in (0,1)

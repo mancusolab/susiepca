@@ -444,12 +444,14 @@ def susie_pca(
         tol: Numerical tolerance for ELBO convergence (float)
         verbose: Flag to indicate displaying log information (ELBO value) in each
             iteration
+
     Returns:
         params: an dictionary that saves all the updated parameters
         elbo_res: the value of evidence lower bound (ELBO) from the last iteration
         pve: a length K ndarray contains the percent of variance explained (PVE)
         pip: posterior inclusion probabilities (PIPs), K by P ndarray
         W: the posterior mean of loading matrix which is also a K by P ndarray
+
     """
 
     # pull type options for init
