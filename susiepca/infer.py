@@ -4,6 +4,9 @@ import jax.numpy as jnp
 from jax import jit, lax, nn, random
 from sklearn.decomposition import PCA
 
+# TODO: append internal functions to have '_'
+
+
 __all__ = [
     "ModelParams",
     "ELBOResults",
@@ -56,21 +59,6 @@ class ELBOResults(NamedTuple):
         )
 
 
-class _FactorLoopResults(NamedTuple):
-    X: jnp.ndarray
-    W: jnp.ndarray
-    EZZ: jnp.ndarray
-    params: ModelParams
-
-
-class _EffectLoopResults(NamedTuple):
-    E_zzk: jnp.ndarray
-    RtZk: jnp.ndarray
-    Wk: jnp.ndarray
-    k: int
-    params: ModelParams
-
-
 class SuSiEPCAResults(NamedTuple):
     params: ModelParams
     elbo: ELBOResults
@@ -79,27 +67,29 @@ class SuSiEPCAResults(NamedTuple):
     W: jnp.ndarray
 
 
-# Create a function to initiate parameters in SuSiE PCA
 def init_params(
-    rng_key, X, z_dim: int, l_dim: int, init: _init_type = "pca", tau: int = 10
+    rng_key: random.PRNGKey,
+    X: jnp.ndarray,
+    z_dim: int,
+    l_dim: int,
+    init: _init_type = "pca",
+    tau: float = 10.0,
 ) -> ModelParams:
-
     """
+    Initialize parameters for SuSiE PCA
      Args:
-        rng_key: A random key return by function jax.random.PRNGkey()
+        rng_key: Random number generator seed
         X: Input data. Should be a array-like
-        z_dim: Latent factor dimension (int; K)
-        l_dim: Number of single-effects comprising each factor (int; L)
+        z_dim: Latent factor dimension (K)
+        l_dim: Number of single-effects comprising each factor ( L)
         init: How to initialize the variational mean parameters for latent factors.
             Either "pca" or "random" (default = "pca")
-        tau: the initial value of tau
+        tau: initial value of residual precision
 
     Returns:
-        ModelParams: Initial value of model parameters
+        ModelParams: initialized set of model parameters
 
     """
-
-    tau = tau
 
     tau_0 = jnp.ones((l_dim, z_dim))
 
@@ -160,7 +150,9 @@ def compute_W_moment(params):
 
 
 # Update posterior mean and variance W
-def update_w(RtZk, E_zzk, params, kdx, ldx):
+def update_w(
+    RtZk: jnp.ndarray, E_zzk: jnp.ndarray, params: ModelParams, kdx: int, ldx: int
+) -> ModelParams:
     # n_dim, z_dim = params.mu_z.shape
 
     # calculate update_var_w as the new V[w | gamma]
@@ -337,33 +329,19 @@ def compute_pve(params):
     return pve
 
 
-@jit
-def _inner_loop(X, params):
-    n_dim, z_dim = params.mu_z.shape
-    l_dim, _, _ = params.mu_w.shape
+class _FactorLoopResults(NamedTuple):
+    X: jnp.ndarray
+    W: jnp.ndarray
+    EZZ: jnp.ndarray
+    params: ModelParams
 
-    # compute expected residuals
-    # use posterior mean of Z, W, and Alpha to calculate residuals
-    W = jnp.sum(params.mu_w * params.alpha, axis=0)
-    E_ZZ = params.mu_z.T @ params.mu_z + n_dim * params.var_z
 
-    # update effect precision via MLE
-    params = update_tau0_mle(params)
-
-    # update locals (W, alpha)
-    init_loop_param = _FactorLoopResults(X, W, E_ZZ, params)
-    _, W, _, params = lax.fori_loop(0, z_dim, _factor_loop, init_loop_param)
-
-    # update factor parameters
-    params = update_z(X, params)
-
-    # update precision parameters via MLE
-    params = update_tau(X, params)
-
-    # compute elbo
-    elbo_res = compute_elbo(X, params)
-
-    return W, elbo_res, params
+class _EffectLoopResults(NamedTuple):
+    E_zzk: jnp.ndarray
+    RtZk: jnp.ndarray
+    Wk: jnp.ndarray
+    k: int
+    params: ModelParams
 
 
 def _factor_loop(kdx: int, loop_params: _FactorLoopResults) -> _FactorLoopResults:
@@ -408,7 +386,35 @@ def _effect_loop(ldx: int, effect_params: _EffectLoopResults) -> _EffectLoopResu
     return effect_params._replace(Wk=Wk, params=params)
 
 
-# The main inference function for SuSiE PCA
+@jit
+def _inner_loop(X: jnp.ndarray, params: ModelParams):
+    n_dim, z_dim = params.mu_z.shape
+    l_dim, _, _ = params.mu_w.shape
+
+    # compute expected residuals
+    # use posterior mean of Z, W, and Alpha to calculate residuals
+    W = jnp.sum(params.mu_w * params.alpha, axis=0)
+    E_ZZ = params.mu_z.T @ params.mu_z + n_dim * params.var_z
+
+    # update effect precision via MLE
+    params = update_tau0_mle(params)
+
+    # update locals (W, alpha)
+    init_loop_param = _FactorLoopResults(X, W, E_ZZ, params)
+    _, W, _, params = lax.fori_loop(0, z_dim, _factor_loop, init_loop_param)
+
+    # update factor parameters
+    params = update_z(X, params)
+
+    # update precision parameters via MLE
+    params = update_tau(X, params)
+
+    # compute elbo
+    elbo_res = compute_elbo(X, params)
+
+    return W, elbo_res, params
+
+
 def susie_pca(
     X: jnp.ndarray,
     z_dim: int,
@@ -420,6 +426,7 @@ def susie_pca(
     verbose: bool = True,
 ) -> SuSiEPCAResults:
     """
+    The main inference function for SuSiE PCA.
 
     Args:
         X: Input data. Should be a array-like
@@ -484,7 +491,7 @@ def susie_pca(
     # type check for init
     if init not in type_options:
         raise ValueError(
-            f"Unknown initialization provided {init}; Choice: {type_options}"
+            f'Unknown initialization provided "{init}"; Choice: {type_options}'
         )
 
     # initialize PRNGkey and params

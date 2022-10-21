@@ -8,8 +8,8 @@
 # serve to show the default.
 
 import os
-import sys
 import shutil
+import sys
 
 # -- Path setup --------------------------------------------------------------
 __location__ = os.path.dirname(__file__)
@@ -20,7 +20,7 @@ __location__ = os.path.dirname(__file__)
 sys.path.insert(0, os.path.join(__location__, "../"))
 
 # If your documentation needs a minimal Sphinx version, state it here.
-needs_sphinx = '5.0'
+needs_sphinx = "5.0"
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
@@ -42,7 +42,7 @@ extensions = [
 ]
 
 python_apigen_modules = {
-      "susiepca": "api",
+    "susiepca": "api",
 }
 
 python_apigen_rst_prolog = """
@@ -110,8 +110,10 @@ object_description_options = [
 ]
 
 # type options
-python_transform_type_annotations_pep585 = True # simplify typing names (e.g., typing.List -> list)
-python_transform_type_annotations_pep604 = True # simplify Union and Optional types
+python_transform_type_annotations_pep585 = (
+    True  # simplify typing names (e.g., typing.List -> list)
+)
+python_transform_type_annotations_pep604 = True  # simplify Union and Optional types
 
 
 # If this is True, todo emits a warning for each TODO entries. The default is False.
@@ -126,7 +128,7 @@ html_theme = "sphinx_immaterial"
 
 # The name for this set of Sphinx documents.  If None, it defaults to
 html_static_path = ["_static"]
-#html_css_files = ["extra_css.css"]
+# html_css_files = ["extra_css.css"]
 html_last_updated_fmt = ""
 html_title = "SuSiE-PCA"
 html_favicon = "_static/images/favicon.ico"
@@ -136,12 +138,12 @@ html_theme_options = {
     "icon": {
         "repo": "fontawesome/brands/github",
     },
-	"site_url": "https://mancusolab.github.io/susiepca/",
+    "site_url": "https://mancusolab.github.io/susiepca/",
     "repo_url": "https://github.com/mancusolab/susiepca/",
     "repo_name": "susiepca",
     "repo_type": "github",
     "edit_uri": "blob/main/docs",
-	"globaltoc_collapse": True,
+    "globaltoc_collapse": True,
     "features": [
         "navigation.expand",
         # "navigation.tabs",
@@ -156,7 +158,7 @@ html_theme_options = {
         "toc.follow",
         "toc.sticky",
     ],
-	"palette": [
+    "palette": [
         {
             "media": "(prefers-color-scheme: light)",
             "scheme": "default",
@@ -195,10 +197,10 @@ html_theme_options = {
             "icon": "fontawesome/brands/github",
             "link": "https://github.com/mancusolab/susiepca",
         },
-        #{
+        # {
         #    "icon": "fontawesome/brands/python",
         #    "link": "https://pypi.org/project/sphinx-immaterial/",
-        #},
+        # },
     ],
     # END: social icons
 }
