@@ -19,40 +19,8 @@ __location__ = os.path.dirname(__file__)
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.join(__location__, "../"))
 
-# -- General configuration ---------------------------------------------------
-# -- Run sphinx-apidoc -------------------------------------------------------
-# This hack is necessary since RTD does not issue `sphinx-apidoc` before running
-# `sphinx-build -b html . _build/html`. See Issue:
-# https://github.com/readthedocs/readthedocs.org/issues/1139
-# DON'T FORGET: Check the box "Install your project inside a virtualenv using
-# setup.py install" in the RTD Advanced Settings.
-# Additionally it helps us to avoid running apidoc manually
-
-"""
-try:  # for Sphinx >= 1.7
-    from sphinx.ext import apidoc
-except ImportError:
-    from sphinx import apidoc
-
-module_dir = os.path.join(__location__, "../susiepca")
-
-try:
-    import sphinx
-
-    cmd_line = f"sphinx-apidoc --implicit-namespaces -f -o . {module_dir}"
-
-    args = cmd_line.split(" ")
-    if tuple(sphinx.__version__.split(".")) >= ("1", "7"):
-        # This is a rudimentary parse_version to avoid external dependencies
-        args = args[1:]
-
-    apidoc.main(args)
-except Exception as e:
-    print("Running `sphinx-apidoc` failed!\n{}".format(e))
-"""
-
 # If your documentation needs a minimal Sphinx version, state it here.
-# needs_sphinx = '1.0'
+needs_sphinx = '5.0'
 
 # Add any Sphinx extension module names here, as strings. They can be extensions
 # coming with Sphinx (named 'sphinx.ext.*') or your custom ones.

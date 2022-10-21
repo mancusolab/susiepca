@@ -215,7 +215,7 @@ package:
    potentially in the root of your project.
 
 #. Sometimes |tox|_ misses out when new dependencies are added, especially to
-   ``setup.cfg`` and ``docs/requirements.txt``. If you find any problems with
+   ``setup.cfg`` and ``requirements.txt``. If you find any problems with
    missing dependencies when running a command with |tox|_, try to recreate the
    ``tox`` environment using the ``-r`` flag. For example, instead of::
 
