@@ -81,9 +81,10 @@ class SuSiEPCAResults(NamedTuple):
     W: jnp.ndarray
 
 
+# Create a function to initiate parameters in SuSiE PCA
 def init_params(
     rng_key, X, z_dim: int, l_dim: int, init: _init_type = "pca", tau: int = 10
-):
+) -> ModelParams:
 
     """
      Args:
@@ -94,8 +95,9 @@ def init_params(
         init: How to initialize the variational mean parameters for latent factors.
             Either "pca" or "random" (default = "pca")
         tau: the initial value of tau
+
     Returns:
-        Initial value of model parameters
+        ModelParams: Initial value of model parameters
 
     """
 
