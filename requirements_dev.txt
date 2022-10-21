@@ -3,4 +3,4 @@ pytest-accept
 pytest-cov
 setuptools
 sphinx==4.2
-sphinx-autodoc-typehints
+sphinx_immaterial
