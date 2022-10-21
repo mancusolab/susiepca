@@ -146,8 +146,6 @@ You can also calculate the relative root mean square error (RRMSE) to assess the
 
    cs = sp.metrics.get_credset(results.params, rho=0.9)
 
-.. _pyscaffold-notes:
-
 Notes
 =====
 
@@ -155,6 +153,7 @@ Notes
 `susiepca` add the following code:
 
 .. code:: python
+
    import jax
    jax.config.update("jax_enable_x64", True)
 
@@ -163,9 +162,12 @@ Similarly, the default computation device for `JAX <https://github.com/google/ja
 calling `susiepca` add the following code:
 
 .. code:: python
+
    import jax
    platform = "gpu" # "gpu", "cpu", or "tpu"
    jax.config.update("jax_platform_name", platform)
+
+.. _pyscaffold-notes:
 
 This project has been set up using PyScaffold 4.1.1. For details and usage
 information on PyScaffold see https://pyscaffold.org/.
