@@ -317,7 +317,7 @@ def compute_pip(params):
         params: the dictionary return from the function susie_pca
 
     Returns:
-        pips: the K by P array of posterior inclusion probabilities (PIPs)
+        pip: the K by P array of posterior inclusion probabilities (PIPs)
 
     """
     pip = 1 - jnp.prod(1 - params.alpha, axis=0)
