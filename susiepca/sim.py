@@ -1,8 +1,42 @@
+from typing import NamedTuple
+
 import jax.numpy as jnp
 from jax import random
 
 
-def generate_sim(seed, l_dim, n_dim, p_dim, z_dim, effect_size=1):
+class SimulateData(NamedTuple):
+    Z: jnp.ndarray
+    W: jnp.ndarray
+    X: jnp.ndarray
+
+
+def generate_sim(
+    seed: int,
+    l_dim: int,
+    n_dim: int,
+    p_dim: int,
+    z_dim: int,
+    effect_size: int = 1,
+) -> SimulateData:
+    """
+
+
+    Args:
+        seed : Seed for "random" initialization (int)
+        l_dim : Number of single effects in each factor (L)
+        n_dim : Number of sample in the data (N)
+        p_dim : Number of feature in the data (P)
+        z_dim : Latent dimensions (K)
+        effect_size : The effect size of features contributing to the factor.
+                      The default is 1.
+
+    Returns
+    -------
+    Z : Simulated factors (N by K)
+    W : Simulated factor loadings (K by P)
+    X : Simulated data (N by P)
+
+    """
     rng_key = random.PRNGKey(seed)
     rng_key, z_key, b_key, obs_key = random.split(rng_key, 4)
 
@@ -19,4 +53,4 @@ def generate_sim(seed, l_dim, n_dim, p_dim, z_dim, effect_size=1):
 
     X = m + random.normal(obs_key, shape=(n_dim, p_dim))
 
-    return Z, W, X
+    return SimulateData(Z, W, X)
