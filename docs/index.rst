@@ -20,8 +20,7 @@ Contents
     :caption: User Guide
 
     Overview <readme>
-    Quickstart <quickstart>
-    Module Reference <api>
+    SuSiE-PCA API Reference <susiepca>
 
 .. toctree::
     :caption: Development

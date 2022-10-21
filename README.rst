@@ -33,7 +33,6 @@
 SuSiE-PCA
 =========
 
-
     SuSiE PCA is a scalable Bayesian variable selection technique for sparse principal component analysis
 
 
@@ -43,15 +42,12 @@ uncertainty of contributing features for each latent component through posterior
 implement the model with the `JAX <https://github.com/google/jax>`_ library developed by Google which enable the fast
 training on CPU, GPU or TPU.
 
-Here we introduce how to install SuSiE PCA and show the example of implementing it on the simulated data set in python.
-
-===========
-Quick start
-===========
 
 Install SuSiE PCA
 =================
-The source code for SuSiE PCA is written fully in python 3.8 with JAX (see `Installation guide <https://github.com/google/jax#installation>`_ for JAX). Follow the code provided below to quickly get started using SuSiE PCA. can clone this github repository in the desired directorty and install the SuSiE PCA
+The source code for SuSiE PCA is written fully in python 3.8 with JAX (see
+`JAX installation guide <https://github.com/google/jax#installation>`_ for JAX). Follow the code provided below to quickly
+get started using SuSiE PCA. Users can clone this github repository and install the SuSiE PCA.
 
 .. code:: bash
 
@@ -116,7 +112,7 @@ The returned "results" contain 5 different objects:
    sns.heatmap(pip, cmap = div, fmt = ".2f", center = 0)
 
 To mathmatically compute the Procrustes error of the estimate loading matrix, you need to install the Procruste package
-to solve the rotation problem (see `Installation guide <https://procrustes.readthedocs.io/en/latest/usr_doc_installization.html>`_
+to solve the rotation problem (see `procrustes installation guide <https://procrustes.readthedocs.io/en/latest/usr_doc_installization.html>`_
 for Procrustes method). Then one can compute the Procrustes error as following:
 
 .. code:: python
