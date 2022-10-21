@@ -1,8 +1,6 @@
 from typing import Literal, NamedTuple, Union, get_args
 
 import jax.numpy as jnp
-import jax.scipy.special as spec
-import scipy.optimize as sopt
 from jax import jit, lax, nn, random
 from sklearn.decomposition import PCA
 
@@ -88,7 +86,7 @@ def init_params(
 
     """
      Args:
-        rng_key: PRNGkey
+        rng_key: A random key return by function jax.random.PRNGkey()
         X: Input data. Should be a array-like
         z_dim: Latent factor dimension (int; K)
         l_dim: Number of single-effects comprising each factor (int; L)
@@ -146,14 +144,9 @@ def init_params(
     )
 
 
+# Create a function to compute the first and second moment of W
 def compute_W_moment(params):
-    # l_dim, z_dim, p_dim = params.mu_w.shape
 
-    # tr(V[w_k]) = sum_l tr(V[w_kl]) =
-    # sum_l sum_i (E[w_kl^2 | gamma_kli = 1] * E[gamma_kl]) + (E[w_kl | gamma_kli = 1] * E[gamma_kl]) ** 2 # noqa: E501
-    # mu**2 * a - mu**2 * a * a = mu**2 * a * (1 - a) = mu**2 * var[a]
-    # V[w_kl] = var[w] * E[a] + E[w]*var[a]
-    # V[Y] = E_X[V[Y | X]] + V_X[E[Y | X]]
     trace_var = jnp.sum(
         params.var_w[:, :, jnp.newaxis] * params.alpha
         + (params.mu_w ** 2 * params.alpha * (1 - params.alpha)),
@@ -166,7 +159,7 @@ def compute_W_moment(params):
     return E_W, E_WW
 
 
-# update w
+# Update posterior mean and variance W
 def update_w(RtZk, E_zzk, params, kdx, ldx):
     # n_dim, z_dim = params.mu_z.shape
 
@@ -183,28 +176,14 @@ def update_w(RtZk, E_zzk, params, kdx, ldx):
     )
 
 
+# Compute log of Bayes factor
 def log_bf_np(z, s2, s0):
     return 0.5 * (jnp.log(s2) - jnp.log(s2 + 1 / s0)) + 0.5 * z ** 2 * (
         (1 / s0) / (s2 + 1 / s0)
     )
 
 
-def update_tau0(RtZk, E_zzk, params, kdx, ldx):
-    Z_s = (RtZk / E_zzk) * jnp.sqrt(E_zzk * params.tau)
-    s2_s = 1 / (E_zzk * params.tau)
-
-    def min_obj(log_s20_s):
-        return -spec.logsumexp(
-            jnp.log(params.pi) + log_bf_np(Z_s, s2_s, jnp.exp(log_s20_s))
-        )
-
-    res = sopt.minimize_scalar(min_obj, method="bounded", bounds=(-30, 10))
-    new_s20_s = jnp.exp(res.x)
-    params = params._replace(tau_0=params.tau_0.at[ldx, kdx].set(new_s20_s))
-
-    return params
-
-
+# Update tau_0 based on MLE
 def update_tau0_mle(params):
     # l_dim, z_dim, p_dim = params.mu_w.shape
 
@@ -215,6 +194,7 @@ def update_tau0_mle(params):
     return params._replace(tau_0=u_tau_0)
 
 
+# Update posterior of alpha using Bayes factor
 def update_alpha_bf(RtZk, E_zzk, params, kdx, ldx):
     Z_s = (RtZk / E_zzk) * jnp.sqrt(E_zzk * params.tau)
     s2_s = 1 / (E_zzk * params.tau)
@@ -231,6 +211,7 @@ def update_alpha_bf(RtZk, E_zzk, params, kdx, ldx):
     return params
 
 
+# Update Posterior mean and variance of Z
 def update_z(X, params):
     E_W, E_WW = compute_W_moment(params)
     z_dim, p_dim = E_W.shape
@@ -241,6 +222,7 @@ def update_z(X, params):
     return params._replace(mu_z=update_mu_z, var_z=update_var_z)
 
 
+# Update tau based on MLE
 def update_tau(X, params):
     n_dim, z_dim = params.mu_z.shape
     l_dim, z_dim, p_dim = params.mu_w.shape
@@ -262,6 +244,7 @@ def update_tau(X, params):
     return params._replace(tau=u_tau)
 
 
+# Compute evidence lower bound (ELBO)
 def compute_elbo(X, params) -> ELBOResults:
     n_dim, z_dim = params.mu_z.shape
     l_dim, z_dim, p_dim = params.mu_w.shape
@@ -311,6 +294,7 @@ def compute_elbo(X, params) -> ELBOResults:
     return result
 
 
+# Create a function to compute the posterior inclusion probabilities
 def compute_pip(params):
 
     """
@@ -327,6 +311,7 @@ def compute_pip(params):
     return pip
 
 
+# Create a function to compute the percent of variance explained (PVE)
 def compute_pve(params):
     """
 
@@ -423,13 +408,14 @@ def _effect_loop(ldx: int, effect_params: _EffectLoopResults) -> _EffectLoopResu
     return effect_params._replace(Wk=Wk, params=params)
 
 
+# The main inference function for SuSiE PCA
 def susie_pca(
     X: jnp.ndarray,
     z_dim: int,
     l_dim: int,
     init: _init_type = "pca",
     seed: int = 0,
-    max_iter: int = 100,
+    max_iter: int = 200,
     tol: float = 1e-3,
     verbose: bool = True,
 ) -> SuSiEPCAResults:
