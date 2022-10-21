@@ -12,7 +12,6 @@ __all__ = [
     "SuSiEPCAResults",
     "compute_pip",
     "compute_pve",
-    "get_credset",
     "susie_pca",
 ]
 
@@ -82,10 +81,25 @@ class SuSiEPCAResults(NamedTuple):
     W: jnp.ndarray
 
 
-def init_params(rng_key, X, z_dim, l_dim, init: _init_type = "pca"):
+def init_params(
+    rng_key, X, z_dim: int, l_dim: int, init: _init_type = "pca", tau: int = 10
+):
 
-    # TODO: make tau a parameter with default init value
-    tau = 10
+    """
+     Args:
+        rng_key: PRNGkey
+        X: Input data. Should be a array-like
+        z_dim: Latent factor dimension (int; K)
+        l_dim: Number of single-effects comprising each factor (int; L)
+        init: How to initialize the variational mean parameters for latent factors.
+            Either "pca" or "random" (default = "pca")
+        tau: the initial value of tau
+    Returns:
+        Initial value of model parameters
+
+    """
+
+    tau = tau
 
     tau_0 = jnp.ones((l_dim, z_dim))
 
@@ -296,32 +310,31 @@ def compute_elbo(X, params) -> ELBOResults:
 
 
 def compute_pip(params):
+
+    """
+
+    Args:
+        params: the dictionary return from the function susie_pca
+
+    Returns:
+        pips: the K by P array of posterior inclusion probabilities (PIPs)
+
+    """
     pip = 1 - jnp.prod(1 - params.alpha, axis=0)
 
     return pip
 
 
-def get_credset(params, rho=0.9):
-    l_dim, z_dim, p_dim = params.alpha.shape
-    idxs = jnp.argsort(-params.alpha, axis=-1)
-    cs = {}
-    for zdx in range(z_dim):
-        cs_s = []
-        for ldx in range(l_dim):
-            cs_s.append([])
-            local = 0.0
-            for pdx in range(p_dim):
-                if local >= rho:
-                    break
-                idx = idxs[ldx][zdx][pdx]
-                cs_s[ldx].append(idx)
-                local += params.alpha[ldx, zdx, idx]
-        cs["z" + str(zdx)] = cs_s
-
-    return cs
-
-
 def compute_pve(params):
+    """
+
+    Args:
+        params: the dictionary return from the function susie_pca
+
+    Returns:
+        pve: the length K array of percent of variance explained by each factor (PVE)
+
+    """
     n_dim, z_dim = params.mu_z.shape
     W = jnp.sum(params.mu_w * params.alpha, axis=0)
 
@@ -486,7 +499,7 @@ def susie_pca(
 
     # initialize PRNGkey and params
     rng_key = random.PRNGKey(seed)
-    params = init_params(rng_key, X, z_dim, l_dim, init)
+    params = init_params(rng_key, X, z_dim, l_dim, init, tau=10)
 
     # run inference
     elbo = -5e25
