@@ -76,7 +76,7 @@ Get Started with Example
 
 .. code:: python
 
-   Z, W, X = sp.sim.generate_sim(seed = 0, l_dim = 40,n_dim = 150, p_dim =200, z_dim = 4, effect_size = 1)
+   Z, W, X = sp.sim.generate_sim(seed = 0, l_dim = 40, n_dim = 150, p_dim =200, z_dim = 4, effect_size = 1)
 
 3. Input the simulation data set into SuSiE PCA with $K=4$ and $L=40$, or you can manipulate with those two parameters
    to check the model mis-specification performance. The max iteration is set to be 200, and here we use the principal
@@ -101,19 +101,19 @@ The returned "results" contain 5 different objects:
 
    import seaborn as sns
 
-   #specify the palatte for heatmap
+   # specify the palatte for heatmap
    div = sns.diverging_palette(250, 10, as_cmap=True)
 
-   #Heatmap of true loading matrix
-   sns.heatmap(W, cmap = div,fmt = ".2f",center = 0)
+   # Heatmap of true loading matrix
+   sns.heatmap(W, cmap = div, fmt = ".2f",center = 0)
 
-   #Heatmap of estimate loading matrix
+   # Heatmap of estimate loading matrix
    W_hat = results.W
-   sns.heatmap(W_hat, cmap = div,fmt = ".2f",center = 0)
+   sns.heatmap(W_hat, cmap = div, fmt = ".2f", center = 0)
 
-   #Heatmap of PIPs
+   # Heatmap of PIPs
    pip = results.pip
-   sns.heatmap(pip, cmap = div,fmt = ".2f",center = 0)
+   sns.heatmap(pip, cmap = div, fmt = ".2f", center = 0)
 
 To mathmatically compute the Procrustes error of the estimate loading matrix, you need to install the Procruste package
 to solve the rotation problem (see `Installation guide <https://procrustes.readthedocs.io/en/latest/usr_doc_installization.html>`_
@@ -124,8 +124,8 @@ for Procrustes method). Then one can compute the Procrustes error as following:
    import procrutes
    import numpy as np
 
-   #peform procruste transformation
-   proc_trans_susie = procrustes.orthogonal(np.asarray(W_hat.T),np.asarray(W.T),scale=True)
+   # perform procruste transformation
+   proc_trans_susie = procrustes.orthogonal(np.asarray(W_hat.T), np.asarray(W.T), scale=True)
    print(f"The Procrustes error for the loading matrix is {proc_trans_susie.error}")
 
 You can also calculate the relative root mean square error (RRMSE) to assess the model prediction performance
@@ -134,11 +134,11 @@ You can also calculate the relative root mean square error (RRMSE) to assess the
 
    from susiepca import metrics
 
-   #compute the predicted data
+   # compute the predicted data
    X_hat = results.params.mu_z @ W_hat
 
-   #compute the RRMSE
-   rrmse_susie = metrics.mse(X,X_hat)
+   # compute the RRMSE
+   rrmse_susie = metrics.mse(X, X_hat)
 
 5. Finally we also provide the function to compute a $\\rho-$ level credible set
 
