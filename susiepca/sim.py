@@ -20,7 +20,6 @@ def generate_sim(
 ) -> SimulateData:
     """
 
-
     Args:
         seed : Seed for "random" initialization (int)
         l_dim : Number of single effects in each factor (L)
@@ -30,8 +29,7 @@ def generate_sim(
         effect_size : The effect size of features contributing to the factor.
                       The default is 1.
 
-    Returns
-    -------
+    Returns:
     Z : Simulated factors (N by K)
     W : Simulated factor loadings (K by P)
     X : Simulated data (N by P)
