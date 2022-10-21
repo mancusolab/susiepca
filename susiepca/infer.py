@@ -1,4 +1,4 @@
-from typing import NamedTuple, Union
+from typing import Literal, NamedTuple, Union, get_args
 
 import jax.numpy as jnp
 import jax.scipy.special as spec
@@ -15,6 +15,9 @@ __all__ = [
     "get_credset",
     "susie_pca",
 ]
+
+
+_init_type = Literal["pca", "random"]
 
 
 def logdet(A):
@@ -79,8 +82,9 @@ class SuSiEPCAResults(NamedTuple):
     W: jnp.ndarray
 
 
-def init_params(rng_key, X, z_dim, l_dim, PCA_init=True):
+def init_params(rng_key, X, z_dim, l_dim, init: _init_type = "pca"):
 
+    # TODO: make tau a parameter with default init value
     tau = 10
 
     tau_0 = jnp.ones((l_dim, z_dim))
@@ -89,18 +93,22 @@ def init_params(rng_key, X, z_dim, l_dim, PCA_init=True):
 
     rng_key, mu_key, var_key, muw_key, varw_key = random.split(rng_key, 5)
 
-    # run PCA and extract weights and latent
-    if PCA_init:
+    if init == "pca":
+        # run PCA and extract weights and latent
         pca = PCA(n_components=z_dim)
         init_mu_z = pca.fit_transform(X)
-    # random initialization
-    else:
+    elif init == "random":
+        # random initialization
         init_mu_z = random.normal(mu_key, shape=(n_dim, z_dim))
+    else:
+        raise ValueError(
+            f'Unknown initialization provided "{init}"; Expected "pca" or "random"'
+        )
 
     init_var_z = jnp.diag(random.normal(var_key, shape=(z_dim,)) ** 2)
 
+    # each w_kl has a specific variance term
     init_mu_w = random.normal(muw_key, shape=(l_dim, z_dim, p_dim)) * 1e-3
-    # suppose each w_kl has a specific variance term
     init_var_w = (1 / tau_0) * (random.normal(varw_key, shape=(l_dim, z_dim))) ** 2
 
     rng_key, alpha_key = random.split(rng_key, 2)
@@ -404,23 +412,25 @@ def susie_pca(
     X: jnp.ndarray,
     z_dim: int,
     l_dim: int,
+    init: _init_type = "pca",
     seed: int = 0,
     max_iter: int = 100,
     tol: float = 1e-3,
     verbose: bool = True,
-    PCA_init: bool = True,
 ) -> SuSiEPCAResults:
     """
 
     Args:
-        X: The input data X should be a jax.numpy ndarray
-        z_dim: The latent factor dimension (K)
-        l_dim: The number of single effects in each factor (L)
-        seed: the random seed for initialization
-        max_iter: the maximum iterations
-        tol: the convergence criterion on ELBO
-        verbose: show the log information (ELBO value) in each iteration
-        PCA_init: Whether use the PCA results as the initialization for mean of Z
+        X: Input data. Should be a array-like
+        z_dim: Latent factor dimension (int; K)
+        l_dim: Number of single-effects comprising each factor (int; L)
+        init: How to initialize the variational mean parameters for latent factors.
+            Either "pca" or "random" (default = "pca")
+        seed: Seed for "random" initialization (int)
+        max_iter: Maximum number of iterations for inference (int)
+        tol: Numerical tolerance for ELBO convergence (float)
+        verbose: Flag to indicate displaying log information (ELBO value) in each
+            iteration
     Returns:
         params: an dictionary that saves all the updated parameters
         elbo_res: the value of evidence lower bound (ELBO) from the last iteration
@@ -428,15 +438,55 @@ def susie_pca(
         pip: posterior inclusion probabilities (PIPs), K by P ndarray
         W: the posterior mean of loading matrix which is also a K by P ndarray
     """
+
+    # pull type options for init
+    type_options = get_args(_init_type)
+
+    # cast to jax array
+    X = jnp.asarray(X)
+    if len(X.shape) != 2:
+        raise ValueError(f"Shape of X = {X.shape}; Expected 2-dim matrix")
+
+    # should we check for n < p?
     n_dim, p_dim = X.shape
 
+    # dim checks
     if l_dim > p_dim:
-        raise ValueError(f"l should be less than p: received l = {l_dim},p = {p_dim}")
+        raise ValueError(
+            f"l_dim should be less than p: received l_dim = {l_dim}, p = {p_dim}"
+        )
+    if l_dim <= 0:
+        raise ValueError(f"l_dim should be positive: received l_dim = {l_dim}")
+    if z_dim > p_dim:
+        raise ValueError(
+            f"z_dim should be less than p: received z_dim = {z_dim}, p = {p_dim}"
+        )
     if z_dim > n_dim:
-        raise ValueError(f"k should be less than n: received k = {z_dim},n = {n_dim}")
+        raise ValueError(
+            f"z_dim should be less than n: received z_dim = {z_dim}, n = {n_dim}"
+        )
+    if z_dim <= 0:
+        raise ValueError(f"z_dim should be positive: received z_dim = {z_dim}")
+
+    # quality checks
+    if jnp.any(jnp.isnan(X)):
+        raise ValueError(
+            "X contains 'nan'. Please check input data for correctness or missingness"
+        )
+    if jnp.any(jnp.isinf(X)):
+        raise ValueError(
+            "X contains 'inf'. Please check input data for correctness or missingness"
+        )
+
+    # type check for init
+    if init not in type_options:
+        raise ValueError(
+            f"Unknown initialization provided {init}; Choice: {type_options}"
+        )
+
     # initialize PRNGkey and params
     rng_key = random.PRNGKey(seed)
-    params = init_params(rng_key, X, z_dim, l_dim, PCA_init)
+    params = init_params(rng_key, X, z_dim, l_dim, init)
 
     # run inference
     elbo = -5e25
@@ -450,17 +500,17 @@ def susie_pca(
 
         diff = elbo_res.elbo - elbo
         if diff < 0 and verbose:
-            print(f"Bug alert! Diff between elbo[{idx - 1}] and elbo[{idx}] = {diff}")
+            print(f"Alert! Diff between elbo[{idx - 1}] and elbo[{idx}] = {diff}")
         if jnp.fabs(diff) < tol:
             if verbose:
                 print(f"Elbo diff tolerance reached at iteration {idx}")
             break
 
         elbo = elbo_res.elbo
-    # compute posterior mean loadings
-    W = jnp.sum(params.mu_w * params.alpha, axis=0)
+
     # compute PVE
     pve = compute_pve(params)
+
     # compute PIPs
     pip = compute_pip(params)
 
