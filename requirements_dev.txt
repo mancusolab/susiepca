@@ -2,5 +2,5 @@ pre-commit
 pytest-accept
 pytest-cov
 setuptools
-sphinx==4.2
+sphinx>=5
 sphinx_immaterial
