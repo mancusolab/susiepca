@@ -16,24 +16,22 @@ Contents
 ========
 
 .. toctree::
-    :maxdepth: 2
-    :caption: User Guide
+   :maxdepth: 2
+   :caption: User Guide
 
-    Overview <readme>
-    SuSiE-PCA API Reference <susiepca>
+   Overview <readme>
 
 .. toctree::
-    :caption: Development
+   :maxdepth: 2
+   :caption: API
 
-    Contributions & Help <contributing>
-    Changelog <changelog>
-    Authors <authors>
-    License <license>
+   SuSiE-PCA API Reference <susiepca>
 
+.. toctree::
+   :maxdepth: 2
+   :caption: Development
 
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
+   Contributions & Help <contributing>
+   Changelog <changelog>
+   Authors <authors>
+   License <license>

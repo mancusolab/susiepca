@@ -54,8 +54,9 @@ class ELBOResults(NamedTuple):
 
     def __str__(self):
         return (
-            f"ELBO = {self.elbo} | E_ll = {self.E_ll} | -KL[Z] = {self.negKL_z} |"
-            f" -KL[W] = {self.negKL_w} | -KL[G] = {self.negKL_gamma}"
+            f"ELBO = {self.elbo:.3f} | E[logl] = {self.E_ll:.3f} | "
+            f"-KL[Z] = {self.negKL_z:.3f} | -KL[W] = {self.negKL_w:.3f} | "
+            f"-KL[G] = {self.negKL_gamma:.3f}"
         )
 
 
@@ -77,7 +78,8 @@ def init_params(
 ) -> ModelParams:
     """
     Initialize parameters for SuSiE PCA
-     Args:
+
+    Args:
         rng_key: Random number generator seed
         X: Input data. Should be a array-like
         z_dim: Latent factor dimension (K)

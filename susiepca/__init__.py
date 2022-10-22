@@ -1,8 +1,18 @@
 from importlib.metadata import PackageNotFoundError, version  # pragma: no cover
 
-from . import infer, metrics, sim
+# flat api; unfortunate but can work with autodoc
+"""
+from infer import *
+from metrics import *
+from sim import *
+"""
+from susiepca import infer, metrics, sim
 
-__all__ = ["infer", "metrics", "sim"]
+__all__ = [
+    "infer",
+    "metrics",
+    "sim",
+]
 
 try:
     # Change here if project is renamed and does not equal the package name
