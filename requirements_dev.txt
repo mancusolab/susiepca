@@ -1,4 +1,5 @@
 pre-commit
+pymdown-extensions
 pytest-accept
 pytest-cov
 setuptools
