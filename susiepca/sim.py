@@ -23,9 +23,7 @@ def generate_sim(
     z_dim: int,
     effect_size: float = 1.0,
 ) -> SimulatedData:
-    """
-
-    Create the function to generated a sparse data for PCA
+    """Create the function to generate a sparse data for PCA.
 
     Args:
         seed: Seed for "random" initialization

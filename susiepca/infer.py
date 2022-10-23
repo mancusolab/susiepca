@@ -48,8 +48,7 @@ class ModelParams(NamedTuple):
 
 class ELBOResults(NamedTuple):
 
-    """
-    Define the class of all components in ELBO
+    """Define the class of all components in ELBO.
 
     Args:
         elbo: the value of ELBO
@@ -90,8 +89,7 @@ def init_params(
     init: _init_type = "pca",
     tau: float = 10.0,
 ) -> ModelParams:
-    """
-    Initialize parameters for SuSiE PCA
+    """Initialize parameters for SuSiE PCA.
 
     Args:
         rng_key: Random number generator seed
@@ -304,8 +302,7 @@ def compute_elbo(X, params) -> ELBOResults:
 
 def compute_pip(params):
 
-    """
-    Create a function to compute the posterior inclusion probabilities (PIPs)
+    """Create a function to compute the posterior inclusion probabilities (PIPs).
 
     Args:
         params: the dictionary return from the function susie_pca
@@ -320,8 +317,7 @@ def compute_pip(params):
 
 
 def compute_pve(params):
-    """
-    Create a function to compute the percent of variance explained (PVE)
+    """Create a function to compute the percent of variance explained (PVE).
 
     Args:
         params: the dictionary return from the function susie_pca
@@ -441,8 +437,7 @@ def susie_pca(
     tol: float = 1e-3,
     verbose: bool = True,
 ) -> SuSiEPCAResults:
-    """
-    The main inference function for SuSiE PCA.
+    """The main inference function for SuSiE PCA.
 
     Args:
         X: Input data. Should be a array-like
