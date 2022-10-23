@@ -25,6 +25,7 @@ def logdet(A):
     return ldet
 
 
+# Define the class for model parameters
 class ModelParams(NamedTuple):
     # variational params for Z
     mu_z: jnp.ndarray
@@ -46,6 +47,19 @@ class ModelParams(NamedTuple):
 
 
 class ELBOResults(NamedTuple):
+
+    """
+    Define the class of all components in ELBO
+
+    Args:
+        elbo: the value of ELBO
+        E_ll: Expectation of log-likelihood
+        negKL_z: -KL divergence of Z
+        negKL_w: -KL divergence of W
+        negKL_gamma: -KL divergence of gamma
+
+    """
+
     elbo: Union[float, jnp.ndarray]
     E_ll: Union[float, jnp.ndarray]
     negKL_z: Union[float, jnp.ndarray]
@@ -288,10 +302,10 @@ def compute_elbo(X, params) -> ELBOResults:
     return result
 
 
-# Create a function to compute the posterior inclusion probabilities
 def compute_pip(params):
 
     """
+    Create a function to compute the posterior inclusion probabilities (PIPs)
 
     Args:
         params: the dictionary return from the function susie_pca
@@ -305,9 +319,9 @@ def compute_pip(params):
     return pip
 
 
-# Create a function to compute the percent of variance explained (PVE)
 def compute_pve(params):
     """
+    Create a function to compute the percent of variance explained (PVE)
 
     Args:
         params: the dictionary return from the function susie_pca

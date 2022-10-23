@@ -25,6 +25,8 @@ def generate_sim(
 ) -> SimulatedData:
     """
 
+    Create the function to generated a sparse data for PCA
+
     Args:
         seed: Seed for "random" initialization
         l_dim: Number of single effects in each factor
