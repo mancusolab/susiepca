@@ -11,6 +11,7 @@ __all__ = [
     "ModelParams",
     "ELBOResults",
     "SuSiEPCAResults",
+    "compute_elbo",
     "compute_pip",
     "compute_pve",
     "susie_pca",
@@ -27,8 +28,8 @@ def logdet(A):
 
 class ModelParams(NamedTuple):
     """Define the class for variational parameters. This
-        class include variational parameters of all the variable
-        we need to infer from the SuSiE PCA
+    class include variational parameters of all the variable
+    we need to infer from the SuSiE PCA.
 
     Args:
         mu_z: mean parameter for factor Z
@@ -66,7 +67,7 @@ class ModelParams(NamedTuple):
 class ELBOResults(NamedTuple):
 
     """Define the class of all components in ELBO,
-        which is returned by function ``compute_elbo``
+    which is returned by function ``compute_elbo``.
 
     Args:
         elbo: the value of ELBO
@@ -92,7 +93,7 @@ class ELBOResults(NamedTuple):
 
 
 class SuSiEPCAResults(NamedTuple):
-    """Define the object returned by function ``susie_pca``
+    """Define the object returned by function ``susie_pca``.
 
     Args:
         params: the dictionary contain all the infered parameters
@@ -279,8 +280,18 @@ def update_tau(X, params):
     return params._replace(tau=u_tau)
 
 
-# Compute evidence lower bound (ELBO)
+#
 def compute_elbo(X, params) -> ELBOResults:
+    """Create function to compute evidence lower bound (ELBO)
+
+    Args:
+        X: the observed data, a N by P ndarray
+        params: the dictionary contains all the infered parameters
+
+    Returns:
+        ELBOResults: the object contains all components in ELBO
+
+    """
     n_dim, z_dim = params.mu_z.shape
     l_dim, z_dim, p_dim = params.mu_w.shape
 
@@ -329,7 +340,7 @@ def compute_elbo(X, params) -> ELBOResults:
     return result
 
 
-def compute_pip(params):
+def compute_pip(params) -> jnp.ndarray:
 
     """Create a function to compute the posterior inclusion probabilities (PIPs).
 
@@ -346,7 +357,7 @@ def compute_pip(params):
     return pip
 
 
-def compute_pve(params):
+def compute_pve(params) -> jnp.ndarray:
 
     """Create a function to compute the percent of variance explained (PVE).
 
