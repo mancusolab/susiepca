@@ -28,8 +28,7 @@ def logdet(A):
 
 class ModelParams(NamedTuple):
     """
-    Define the class for variational parameters. This class
-    include variational parameters of all the variable we need
+    Define the class for variational parameters of all the variable we need
     to infer from the SuSiE PCA.
 
     Args:
@@ -67,8 +66,7 @@ class ModelParams(NamedTuple):
 #
 class ELBOResults(NamedTuple):
 
-    """Define the class of all components in ELBO,
-    which is returned by function ``compute_elbo``.
+    """Define the class of all components in ELBO.
 
     Args:
         elbo: the value of ELBO
@@ -94,7 +92,7 @@ class ELBOResults(NamedTuple):
 
 
 class SuSiEPCAResults(NamedTuple):
-    """Define the object returned by function ``susie_pca``.
+    """Define the results object returned by function ``infer.susie_pca``.
 
     Args:
         params: the dictionary contain all the infered parameters
