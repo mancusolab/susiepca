@@ -92,7 +92,7 @@ class ELBOResults(NamedTuple):
 
 
 class SuSiEPCAResults(NamedTuple):
-    """Define the results object returned by function ``infer.susie_pca``.
+    """Define the results object returned by function :py:obj:`susie_pca`.
 
     Args:
         params: the dictionary contain all the infered parameters
@@ -339,16 +339,15 @@ def compute_elbo(X, params) -> ELBOResults:
     return result
 
 
-def compute_pip(params) -> jnp.ndarray:
-
+def compute_pip(params: ModelParams) -> jnp.ndarray:
     """Create a function to compute the posterior inclusion probabilities (PIPs).
 
     Args:
-        params: the dictionary contains all the infered parameters,
-                returned from the function ``susie_pca``.
+        params: instance of infered parameters
 
     Returns:
-        pip: the K by P array of posterior inclusion probabilities (PIPs)
+        Array of posterior inclusion probabilities (PIPs) for each of
+        `K x P` factor, feature combinations
     """
 
     pip = 1 - jnp.prod(1 - params.alpha, axis=0)
@@ -356,16 +355,15 @@ def compute_pip(params) -> jnp.ndarray:
     return pip
 
 
-def compute_pve(params) -> jnp.ndarray:
-
+def compute_pve(params: ModelParams) -> jnp.ndarray:
     """Create a function to compute the percent of variance explained (PVE).
 
     Args:
-        params: the dictionary contains all the infered parameters,
-        returned from the function ``susie_pca``
+        params: instance of infered parameters
 
     Returns:
-        pve: the length K array of percent of variance explained by each factor (PVE)
+        Array of length `K` that contains percent of variance explained by each
+        factor (PVE)
     """
 
     n_dim, z_dim = params.mu_z.shape
@@ -494,11 +492,13 @@ def susie_pca(
             iteration
 
     Returns:
-        params: an dictionary that saves all the updated parameters
-        elbo_res: the value of evidence lower bound (ELBO) from the last iteration
-        pve: a length K ndarray contains the percent of variance explained (PVE)
-        pip: posterior inclusion probabilities (PIPs), K by P ndarray
-        W: the posterior mean of loading matrix which is also a K by P ndarray
+        A :py:obj:`SuSiEPCAResults` instance that has member variables for learned
+        parameters (:py:obj:`ModelParams`), evidence lower bound (ELBO) results
+        (:py:obj:`ELBOResults`) from the last iteration, the percent of variance
+        explained (PVE) for each of the `K` factors (:py:obj:`jax.numpy.ndarray`),
+        the posterior inclusion probabilities (PIPs) for each of the `K` factors
+        and `P` features (:py:obj:`jax.numpy.ndarray`), and the posterior mean of
+        loading matrix of shape `K x P` (:py:obj:`jax.numpy.ndarray`).
     """
 
     # pull type options for init

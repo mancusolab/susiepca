@@ -128,11 +128,11 @@ python_apigen_default_order = [
 ]
 
 object_description_options = [
-    ("py.*", dict(include_in_toc=False)),
+    ("py.*", dict(include_in_toc=False,
+                  include_fields_in_toc=False,
+                  wrap_signatures_with_css=True)),
     ("py.class", dict(include_in_toc=True)),
     ("py.function", dict(include_in_toc=True)),
-    ("py.*", dict(include_fields_in_toc=False)),
-    ("py:.*", dict(wrap_signatures_with_css=True)),
 ]
 
 python_apigen_order_tiebreaker = "alphabetical"
