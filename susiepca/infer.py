@@ -27,9 +27,10 @@ def logdet(A):
 
 
 class ModelParams(NamedTuple):
-    """Define the class for variational parameters. This
-    class include variational parameters of all the variable
-    we need to infer from the SuSiE PCA.
+    """
+    Define the class for variational parameters. This class
+    include variational parameters of all the variable we need
+    to infer from the SuSiE PCA.
 
     Args:
         mu_z: mean parameter for factor Z
