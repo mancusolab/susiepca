@@ -302,10 +302,11 @@ def compute_elbo(X, params) -> ELBOResults:
 
 def compute_pip(params):
 
-    """Create a function to compute the posterior inclusion probabilities (PIPs).
+    """Create a function to compute the posterior
+        inclusion probabilities (PIPs).
 
     Args:
-        params: the dictionary return from the function susie_pca
+        params: the dictionary return from the function ``susie_pca``.
 
     Returns:
         pip: the K by P array of posterior inclusion probabilities (PIPs)
