@@ -163,6 +163,8 @@ calling `susiepca` add the following code:
    platform = "gpu" # "gpu", "cpu", or "tpu"
    jax.config.update("jax_platform_name", platform)
 
+---------------------
+
 .. _pyscaffold-notes:
 
 This project has been set up using PyScaffold 4.1.1. For details and usage
