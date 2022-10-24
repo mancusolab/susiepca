@@ -31,7 +31,7 @@ class ModelParams(NamedTuple):
     Define the class for variational parameters of all the variable we need
     to infer from the SuSiE PCA.
 
-    Args:
+    Attributes:
         mu_z: mean parameter for factor Z
         var_z: variance parameter for factor Z
         mu_w: conditional mean parameter for loadings W
@@ -68,7 +68,7 @@ class ELBOResults(NamedTuple):
 
     """Define the class of all components in ELBO.
 
-    Args:
+    Attributes:
         elbo: the value of ELBO
         E_ll: Expectation of log-likelihood
         negKL_z: -KL divergence of Z
@@ -94,7 +94,7 @@ class ELBOResults(NamedTuple):
 class SuSiEPCAResults(NamedTuple):
     """Define the results object returned by function :py:obj:`susie_pca`.
 
-    Args:
+    Attributes:
         params: the dictionary contain all the infered parameters
         elbo: the value of ELBO
         pve: the ndarray of percent of variance explained

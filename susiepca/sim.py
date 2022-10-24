@@ -12,7 +12,7 @@ __all__ = [
 class SimulatedData(NamedTuple):
     """the object contain simulated data components.
 
-    Args:
+    Attributes:
         Z: simulated factor
         W: simulated loadings
         X: simulated data set
