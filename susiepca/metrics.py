@@ -16,9 +16,9 @@ def mse(X: jnp.ndarray, Xhat: jnp.ndarray) -> float:
     Returns:
         RRMSE: relative root mean square error
 
-    Example:
-    >>>Xhat = params.mu_z @ W
-    >>>rrmse = mse(X,Xhat)
+    Examples:
+        >>>Xhat = params.mu_z @ W
+        >>>rrmse = mse(X,Xhat)
 
     """
     return jnp.sum((X - Xhat) ** 2) / jnp.sum(X ** 2)
