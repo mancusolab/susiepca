@@ -309,14 +309,15 @@ def compute_pip(params):
 
     Returns:
         pip: the K by P array of posterior inclusion probabilities (PIPs)
-
     """
+
     pip = 1 - jnp.prod(1 - params.alpha, axis=0)
 
     return pip
 
 
 def compute_pve(params):
+
     """Create a function to compute the percent of variance explained (PVE).
 
     Args:
@@ -324,8 +325,8 @@ def compute_pve(params):
 
     Returns:
         pve: the length K array of percent of variance explained by each factor (PVE)
-
     """
+
     n_dim, z_dim = params.mu_z.shape
     W = jnp.sum(params.mu_w * params.alpha, axis=0)
 
@@ -457,7 +458,6 @@ def susie_pca(
         pve: a length K ndarray contains the percent of variance explained (PVE)
         pip: posterior inclusion probabilities (PIPs), K by P ndarray
         W: the posterior mean of loading matrix which is also a K by P ndarray
-
     """
 
     # pull type options for init
