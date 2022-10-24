@@ -46,9 +46,10 @@ class ModelParams(NamedTuple):
     pi: jnp.ndarray
 
 
+# Define the class of all components in ELBO.
 class ELBOResults(NamedTuple):
 
-    """Define the class of all components in ELBO.
+    """
 
     Args:
         elbo: the value of ELBO
@@ -300,6 +301,7 @@ def compute_elbo(X, params) -> ELBOResults:
     return result
 
 
+# Create a function to compute the posterior inclusion probabilities (PIPs).
 def compute_pip(params):
 
     """
