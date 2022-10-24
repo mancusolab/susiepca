@@ -7,8 +7,8 @@ __all__ = [
 
 
 def mse(X: jnp.ndarray, Xhat: jnp.ndarray):
-    """
-
+    """Create a function to compute relative
+        roote mean square error.
 
     Args:
         X : Input data. Should be a array-like
@@ -23,7 +23,8 @@ def mse(X: jnp.ndarray, Xhat: jnp.ndarray):
 
 def get_credset(params, rho=0.9):
 
-    """
+    """Creat a function to compute the rho-level
+        credible set
 
     Args:
         params: the dictionary return from the function susie_pca
