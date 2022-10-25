@@ -29,6 +29,9 @@
 
 |
 
+.. _Documentation: https://mancusolab.github.io/susiepca/
+.. |Documentation| replace:: **Documentation** 
+
 =========
 SuSiE-PCA
 =========
@@ -36,34 +39,50 @@ SuSiE-PCA
     SuSiE PCA is a scalable Bayesian variable selection technique for sparse principal component analysis
 
 
-SuSiE PCA is the abbreviation for the sum of single effects model in principal component analysis. We develop SuSiE PCA
+SuSiE PCA is the abbreviation for the Sum of Single Effects model [1]_ for principal component analysis. We develop SuSiE PCA
 for an efficient variable selection in PCA when dealing with high dimensional data with sparsity, and for quantifying
 uncertainty of contributing features for each latent component through posterior inclusion probabilities (PIPs). We
 implement the model with the `JAX <https://github.com/google/jax>`_ library developed by Google which enable the fast
 training on CPU, GPU or TPU.
 
+|Documentation|_ | |Installation|_ | |Example|_ | |Notes|_ | |References|_
+
 Model Description
 =================
-We extend the sum of single effects model (`SuSiE <https://rss.onlinelibrary.wiley.com/doi/10.1111/rssb.12388>`_) to principal component analysis. Assume $X_{N \\times P}$ is the observed data, $Z_{N \\times K}$ is the latent factors, and $W_{K \\times P}$ is the factor loading matrix, then the SuSiE PCA model is given by:
+We extend the Sum of Single Effects model (i.e. SuSiE) [1]_ to principal component analysis. Assume $X_{N \\times P}$ 
+is the observed data, $Z_{N \\times K}$ is the latent factors, and $W_{K \\times P}$ is the factor loading matrix, then 
+the SuSiE PCA model is given by:
 
-$$X | Z,W \\sim \\mathcal{MN}_{N,P}(ZW,I_N,I_P)  $$
+$$X | Z,W \\sim \\mathcal{MN}_{N,P}(ZW, I_N, \\sigma^2 I_P)$$
 
 where the $\\mathcal{MN}_{N,P}$ is the matrix normal distribution with dimension $N \\times P$,
-mean $ZW$, row-covariance $I_N$, and column-covariance $I_P$. The column vector of $Z$ follows a standard normal distribution. The above model setting is the same as the `Probabilistic PCA <https://rss.onlinelibrary.wiley.com/doi/abs/10.1111/1467-9868.00196?casa_token=eP85q23j9GoAAAAA:D1pr7dLuzTcs1wDglsDMu14QEmoJttwjdPzrlYI5_QWISOKvcyeeQVW3k4aEuOim5uXXcnt-na_QkGM>`_. The most distinguished part is that we integrate the SuSiE setting into the row vector $\\mathbf{w}_k$ of factor loading matrix $W$, such that each $\\mathbf{w}_k$ only contains at most $L$ number of non-zero effects. That is,
+mean $ZW$, row-covariance $I_N$, and column-covariance $I_P$. The column vector of $Z$ follows a 
+standard normal distribution. The above model setting is the same as the Probabilistic PCA [2]_. The 
+most distinguished part is that we integrate the SuSiE setting into the row vector $\\mathbf{w}_k$ of 
+factor loading matrix $W$, such that each $\\mathbf{w}_k$ only contains at most $L$ number of non-zero effects. That is,
 $$\\mathbf{w}_k = \\sum_{l=1}^L \\mathbf{w}_{kl} $$
 $$\\mathbf{w}_{kl} = w_{kl} \\gamma_{kl}$$
 $$w_{kl} \\sim \\mathcal{N}(0,\\sigma^2_{0kl})$$
 $$\\gamma_{kl} | \\pi \\sim \\text{Multi}(1,\\pi) $$
 
-Notice that each row vector $\\mathbf{w}_k$ is a sum of single effect vector $\\mathbf{w}_{kl}$, which is length $P$ vector contains only one non-zero effect $w_{kl}$ and zero elsewhere. And the coordinate of the non-zero effect is determined by $\\gamma_{kl}$ that follows a multinomial distribution with parameter $\\pi$. By construction, each factor inferred from the SuSiE PCA will have at most $L$ number of associated features from the original data. Moreover, we can quantify the probability of the strength of association through the posterior inclusion probabilities (PIPs). Suppose the posterior distribution of $\\gamma_{kl} \\sim \\text{Multi}(1,\\mathbf{\\alpha_{kl}})$, then the probability the feature $i$ contributing to the fatctor $\\mathbf{w}_k$ is given by:
-$$\\text{PIP}_{ki} = 1-\\prod_{l=1}^L \\alpha_{kli}$$
-where the $\\alpha_{kli}$ is the $i_{th}$ entry of the $\\mathbf{\\alpha_{kl}}$.
+Notice that each row vector $\\mathbf{w}_k$ is a sum of single effect vector $\\mathbf{w}_{kl}$, which is length $P$ vector 
+contains only one non-zero effect $w_{kl}$ and zero elsewhere. And the coordinate of the non-zero effect is determined by 
+$\\gamma_{kl}$ that follows a multinomial distribution with parameter $\\pi$. By construction, each factor inferred from the 
+SuSiE PCA will have at most $L$ number of associated features from the original data. Moreover, we can quantify the probability 
+of the strength of association through the posterior inclusion probabilities (PIPs). Suppose the posterior distribution of 
+$\\gamma_{kl} \\sim \\text{Multi}(1,\\mathbf{\\alpha}_{kl})$, then the probability the feature $i$ contributing to the factor 
+$\\mathbf{w}_k$ is given by:
+$$\\text{PIP}_{ki} = 1-\\prod_{l=1}^L (1 - \\alpha_{kli})$$
+where the $\\alpha_{kli}$ is the $i_{th}$ entry of the $\\mathbf{\\alpha}_{kl}$.
 
+.. _Installation:
+.. |Installation| replace:: **Installation**
 Install SuSiE PCA
 =================
-The source code for SuSiE PCA is written fully in python 3.8 with JAX (see
+The source code for SuSiE PCA is written fully in Python 3.8 with JAX (see
 `JAX installation guide <https://github.com/google/jax#installation>`_ for JAX). Follow the code provided below to quickly
-get started using SuSiE PCA. Users can clone this github repository and install the SuSiE PCA.
+get started using SuSiE PCA. Users can clone this github repository and install the SuSiE PCA. (Pypi installation will
+be supported soon).
 
 .. code:: bash
 
@@ -71,8 +90,8 @@ get started using SuSiE PCA. Users can clone this github repository and install 
    cd susiepca
    pip install -e .
 
-
-
+.. _Example:
+.. |Example| replace:: **Example**
 Get Started with Example
 ========================
 
@@ -158,6 +177,8 @@ You can also calculate the relative root mean square error (RRMSE) to assess the
 
    cs = sp.metrics.get_credset(results.params, rho=0.9)
 
+.. _Notes:
+.. |Notes| replace:: **Notes**
 Notes
 =====
 
@@ -178,6 +199,13 @@ calling `susiepca` add the following code:
    import jax
    platform = "gpu" # "gpu", "cpu", or "tpu"
    jax.config.update("jax_platform_name", platform)
+
+.. _References:
+.. |References| replace:: **References**
+References
+==========
+.. [1] Wang, G., Sarkar, A., Carbonetto, P. and Stephens, M. (2020), A simple new approach to variable selection in regression, with application to genetic fine mapping. J. R. Stat. Soc. B, 82: 1273-1300. https://doi.org/10.1111/rssb.12388
+.. [2] Tipping, M.E. and Bishop, C.M. (1999), Probabilistic Principal Component Analysis. Journal of the Royal Statistical Society: Series B (Statistical Methodology), 61: 611-622. https://doi.org/10.1111/1467-9868.00196
 
 ---------------------
 
