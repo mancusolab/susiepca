@@ -23,9 +23,11 @@ Contents
 
 .. toctree::
    :maxdepth: 2
-   :caption: API
+   :caption: API Reference
 
-   SuSiE-PCA API Reference <susiepca>
+   api/infer.rst
+   api/metrics.rst
+   api/sim.rst
 
 .. toctree::
    :maxdepth: 2

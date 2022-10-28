@@ -30,7 +30,7 @@
 |
 
 .. _Documentation: https://mancusolab.github.io/susiepca/
-.. |Documentation| replace:: **Documentation** 
+.. |Documentation| replace:: **Documentation**
 
 =========
 SuSiE-PCA
@@ -49,34 +49,35 @@ training on CPU, GPU or TPU.
 
 Model Description
 =================
-We extend the Sum of Single Effects model (i.e. SuSiE) [1]_ to principal component analysis. Assume $X_{N \\times P}$ 
-is the observed data, $Z_{N \\times K}$ is the latent factors, and $W_{K \\times P}$ is the factor loading matrix, then 
+We extend the Sum of Single Effects model (i.e. SuSiE) [1]_ to principal component analysis. Assume $X_{N \\times P}$
+is the observed data, $Z_{N \\times K}$ is the latent factors, and $W_{K \\times P}$ is the factor loading matrix, then
 the SuSiE PCA model is given by:
 
 $$X | Z,W \\sim \\mathcal{MN}_{N,P}(ZW, I_N, \\sigma^2 I_P)$$
 
 where the $\\mathcal{MN}_{N,P}$ is the matrix normal distribution with dimension $N \\times P$,
-mean $ZW$, row-covariance $I_N$, and column-covariance $I_P$. The column vector of $Z$ follows a 
-standard normal distribution. The above model setting is the same as the Probabilistic PCA [2]_. The 
-most distinguished part is that we integrate the SuSiE setting into the row vector $\\mathbf{w}_k$ of 
+mean $ZW$, row-covariance $I_N$, and column-covariance $I_P$. The column vector of $Z$ follows a
+standard normal distribution. The above model setting is the same as the Probabilistic PCA [2]_. The
+most distinguished part is that we integrate the SuSiE setting into the row vector $\\mathbf{w}_k$ of
 factor loading matrix $W$, such that each $\\mathbf{w}_k$ only contains at most $L$ number of non-zero effects. That is,
 $$\\mathbf{w}_k = \\sum_{l=1}^L \\mathbf{w}_{kl} $$
 $$\\mathbf{w}_{kl} = w_{kl} \\gamma_{kl}$$
 $$w_{kl} \\sim \\mathcal{N}(0,\\sigma^2_{0kl})$$
 $$\\gamma_{kl} | \\pi \\sim \\text{Multi}(1,\\pi) $$
 
-Notice that each row vector $\\mathbf{w}_k$ is a sum of single effect vector $\\mathbf{w}_{kl}$, which is length $P$ vector 
-contains only one non-zero effect $w_{kl}$ and zero elsewhere. And the coordinate of the non-zero effect is determined by 
-$\\gamma_{kl}$ that follows a multinomial distribution with parameter $\\pi$. By construction, each factor inferred from the 
-SuSiE PCA will have at most $L$ number of associated features from the original data. Moreover, we can quantify the probability 
-of the strength of association through the posterior inclusion probabilities (PIPs). Suppose the posterior distribution of 
-$\\gamma_{kl} \\sim \\text{Multi}(1,\\mathbf{\\alpha}_{kl})$, then the probability the feature $i$ contributing to the factor 
+Notice that each row vector $\\mathbf{w}_k$ is a sum of single effect vector $\\mathbf{w}_{kl}$, which is length $P$ vector
+contains only one non-zero effect $w_{kl}$ and zero elsewhere. And the coordinate of the non-zero effect is determined by
+$\\gamma_{kl}$ that follows a multinomial distribution with parameter $\\pi$. By construction, each factor inferred from the
+SuSiE PCA will have at most $L$ number of associated features from the original data. Moreover, we can quantify the probability
+of the strength of association through the posterior inclusion probabilities (PIPs). Suppose the posterior distribution of
+$\\gamma_{kl} \\sim \\text{Multi}(1,\\mathbf{\\alpha}_{kl})$, then the probability the feature $i$ contributing to the factor
 $\\mathbf{w}_k$ is given by:
 $$\\text{PIP}_{ki} = 1-\\prod_{l=1}^L (1 - \\alpha_{kli})$$
 where the $\\alpha_{kli}$ is the $i_{th}$ entry of the $\\mathbf{\\alpha}_{kl}$.
 
 .. _Installation:
 .. |Installation| replace:: **Installation**
+
 Install SuSiE PCA
 =================
 The source code for SuSiE PCA is written fully in Python 3.8 with JAX (see
@@ -92,6 +93,7 @@ be supported soon).
 
 .. _Example:
 .. |Example| replace:: **Example**
+
 Get Started with Example
 ========================
 
@@ -179,6 +181,7 @@ You can also calculate the relative root mean square error (RRMSE) to assess the
 
 .. _Notes:
 .. |Notes| replace:: **Notes**
+
 Notes
 =====
 
@@ -202,6 +205,7 @@ calling `susiepca` add the following code:
 
 .. _References:
 .. |References| replace:: **References**
+
 References
 ==========
 .. [1] Wang, G., Sarkar, A., Carbonetto, P. and Stephens, M. (2020), A simple new approach to variable selection in regression, with application to genetic fine mapping. J. R. Stat. Soc. B, 82: 1273-1300. https://doi.org/10.1111/rssb.12388

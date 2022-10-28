@@ -130,8 +130,10 @@ def init_params(
         tau: initial value of residual precision
 
     Returns:
-        ModelParams: initialized set of model parameters
+        ModelParams: initialized set of model parameters.
 
+    Raises:
+        ValueError: Invalid initialization scheme.
     """
 
     tau_0 = jnp.ones((l_dim, z_dim))
@@ -139,6 +141,9 @@ def init_params(
     n_dim, p_dim = X.shape
 
     rng_key, mu_key, var_key, muw_key, varw_key = random.split(rng_key, 5)
+
+    # pull type options for init
+    type_options = get_args(_init_type)
 
     if init == "pca":
         # run PCA and extract weights and latent
@@ -149,7 +154,7 @@ def init_params(
         init_mu_z = random.normal(mu_key, shape=(n_dim, z_dim))
     else:
         raise ValueError(
-            f'Unknown initialization provided "{init}"; Expected "pca" or "random"'
+            f"Unknown initialization provided '{init}'; Choices: {type_options}"
         )
 
     init_var_z = jnp.diag(random.normal(var_key, shape=(z_dim,)) ** 2)
@@ -499,6 +504,10 @@ def susie_pca(
         the posterior inclusion probabilities (PIPs) for each of the `K` factors
         and `P` features (:py:obj:`jax.numpy.ndarray`), and the posterior mean of
         loading matrix of shape `K x P` (:py:obj:`jax.numpy.ndarray`).
+
+    Raises:
+        ValueError: Invalid `l_dim` or `z_dim` values. Invalid initialization scheme.
+        Data `X` contains `inf` or `nan`.
     """
 
     # pull type options for init
@@ -543,7 +552,7 @@ def susie_pca(
     # type check for init
     if init not in type_options:
         raise ValueError(
-            f'Unknown initialization provided "{init}"; Choice: {type_options}'
+            f"Unknown initialization provided '{init}'; Choices: {type_options}"
         )
 
     # initialize PRNGkey and params

@@ -108,8 +108,12 @@ python_apigen_modules = {
 }
 
 python_apigen_default_groups = [
-    ("class:..*", "Classes"),
-    ("property:.*", "Properties"),
+    (r".*:susiepca.infer.*", "Infer Public-members"),
+    (r"class:susiepca.infer.*", "Infer Classes"),
+    (r".*:susiepca.metrics.*", "Metrics Public-members"),
+    (r"class:susiepca.metrics.*", "Metrics Classes"),
+    (r".*:susiepca.sim.*", "Sim Public-members"),
+    (r"class:susiepca.sim.*", "Sim Classes"),
     (r"method:.*\.__(str|repr)__", "String representation"),
     # ("method:.*", "Methods"),
     # ("classmethod:.*", "Class methods"),
@@ -141,9 +145,12 @@ python_apigen_show_base_classes = False
 
 # simplify typing names (e.g., typing.List -> list)
 # simplify Union and Optional types
-python_transform_type_annotations_pep585 = True
+python_transform_type_annotations_pep585 = False
 python_transform_type_annotations_pep604 = True
 python_transform_type_annotations_concise_literal = True
+
+# fix namedtuple attribute types
+napoleon_use_ivar = True
 
 python_apigen_rst_prolog = """
 .. default-role:: py:obj
@@ -254,7 +261,29 @@ python_version = ".".join(map(str, sys.version_info[0:2]))
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/" + python_version, None),
-    "jax": ("https://jax.readthedocs.io/en/latest/", None),
+    "jax": ("https://jax.readthedocs.io/en/latest", None),
 }
 
 print(f"loading configurations for {project} {version} ...", file=sys.stderr)
+
+# -- Post process ------------------------------------------------------------
+import collections
+def remove_namedtuple_attrib_docstring(app, what, name, obj, skip, options):
+    if type(obj) is collections._tuplegetter:
+        return True
+    return skip
+
+def autodoc_process_signature(app, what, name, obj, options, signature, return_annotation):
+    signature = modify_type_hints(signature)
+    return_annotation = modify_type_hints(return_annotation)
+    return signature, return_annotation
+
+def modify_type_hints(signature):
+    if signature:
+        signature = signature.replace("jnp", "~jax.numpy")
+    return signature
+
+
+def setup(app):
+    app.connect('autodoc-skip-member', remove_namedtuple_attrib_docstring)
+    app.connect("autodoc-process-signature", autodoc_process_signature)
