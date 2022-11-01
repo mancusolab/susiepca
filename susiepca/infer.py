@@ -476,6 +476,7 @@ def susie_pca(
     X: jnp.ndarray,
     z_dim: int,
     l_dim: int,
+    center: bool = False,
     init: _init_type = "pca",
     seed: int = 0,
     max_iter: int = 200,
@@ -548,6 +549,11 @@ def susie_pca(
         raise ValueError(
             "X contains 'inf'. Please check input data for correctness or missingness"
         )
+
+    # option to center the data
+    if center:
+        X -= jnp.mean(X, axis=0)
+        X /= jnp.std(X, axis=0)
 
     # type check for init
     if init not in type_options:
