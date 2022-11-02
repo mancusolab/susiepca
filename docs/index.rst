@@ -34,6 +34,7 @@ Contents
    :caption: Development
 
    Contributions & Help <contributing>
+   Code of Conduct <conduct>
    Changelog <changelog>
    Authors <authors>
    License <license>
