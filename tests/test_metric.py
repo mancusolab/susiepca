@@ -14,3 +14,9 @@ def test_mse(seed):
     actual_res = sp.metrics.mse(X, Xhat)
     assert X.shape == Xhat.shape
     assert pytest.approx(expected_res) == actual_res
+
+    # with pytest.raises(Exception):
+
+
+# define the test for credible set
+# def test_get_credset():
