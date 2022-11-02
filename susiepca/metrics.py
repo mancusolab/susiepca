@@ -17,7 +17,11 @@ def mse(X: jnp.ndarray, Xhat: jnp.ndarray) -> float:
         RRMSE: relative root mean square error
 
     """
-    return jnp.sum((X - Xhat) ** 2) / jnp.sum(X ** 2)
+    if X.shape != Xhat.shape:
+        raise ValueError("Predicted data shape doesn't match, please check")
+
+    mse = jnp.sum((X - Xhat) ** 2) / jnp.sum(X ** 2)
+    return mse
 
 
 def get_credset(params, rho=0.9):

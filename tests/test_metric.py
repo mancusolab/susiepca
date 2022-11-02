@@ -5,17 +5,22 @@ import susiepca as sp
 
 
 # define the test for MSE
-@pytest.mark.parametrize("seed", 0)
-def test_mse(seed):
-    np.random.seed(seed)
-    X = np.random.normal(0, 1, size=(3, 5))
-    Xhat = X + np.random.normal(0, 0.5, (3, 5))
-    expected_res = 0.11514
+def test_mse():
+    X = np.array([[-0.58, -0.43, 0.70], [-0.50, -1.22, 0.91]])
+
+    Xhat = np.array([[-0.90, -0.50, 0.40], [-1.17, -1.47, 0.91]])
+    Xhat_wrongshape = np.array(
+        [[-0.90, -0.50, 0.40], [-1.17, -1.47, 0.91], [-0.32, 0.52, 1.36]]
+    )
+
+    expected_res = 0.1981
     actual_res = sp.metrics.mse(X, Xhat)
+
     assert X.shape == Xhat.shape
     assert pytest.approx(expected_res) == actual_res
 
-    # with pytest.raises(Exception):
+    with pytest.raises(ValueError):
+        sp.metrics.mse(X, Xhat_wrongshape)
 
 
 # define the test for credible set
