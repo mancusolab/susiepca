@@ -489,6 +489,8 @@ def susie_pca(
         X: Input data. Should be a array-like
         z_dim: Latent factor dimension (int; K)
         l_dim: Number of single-effects comprising each factor (int; L)
+        center: Whether to center and scale the input data with mean 0
+                and variance 1 (default = False)
         init: How to initialize the variational mean parameters for latent factors.
             Either "pca" or "random" (default = "pca")
         seed: Seed for "random" initialization (int)
