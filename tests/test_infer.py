@@ -1,4 +1,5 @@
 import jax.numpy as jnp
+import pytest
 
 import susiepca as sp
 
@@ -6,6 +7,10 @@ import susiepca as sp
 
 
 # set n_dim = 3, p_dim = 5, l_dim = 2, z_dim(k) = 2
+n_dim = 3
+p_dim = 5
+l_dim = 2
+z_dim = 2
 
 params = sp.infer.ModelParams(
     mu_z=jnp.array(
@@ -73,3 +78,30 @@ def test_compute_pve():
 
 def test_compute_pip():
     assert params.mu_w.shape == params.alpha.shape
+
+
+def test_susie_pca():
+    X = jnp.array([[1, 2, 3, 4, 5], [2, 8, 1, 2, 1], [0, 1, 3, 4, 1]])
+    X_wrongshape = jnp.array(
+        [[[1, 2, 3, 4, 5], [2, 8, 1, 2, 1]], [[0, 1, 3, 4, 1], [1, 5, 8, 3, 1]]]
+    )
+    X_nan = jnp.array([[1, 2, 3, 4, jnp.nan], [2, 8, 1, 2, 1], [0, 1, 3, 4, 1]])
+    X_inf = jnp.array([[1, 2, 3, 4, jnp.inf], [2, 8, 1, 2, 1], [0, 1, 3, 4, 1]])
+    # test X with wrong shape
+    with pytest.raises(ValueError):
+        sp.infer.susie_pca(X_wrongshape, z_dim, l_dim)
+        # test l_dim > p_dim
+        sp.infer.susie_pca(X, z_dim, l_dim=6)
+        # test l_dim<=0
+        sp.infer.susie_pca(X, z_dim, l_dim=0)
+        # test z_dim>p_dim
+        sp.infer.susie_pca(X, z_dim=6, l_dim=l_dim)
+        # test z_dim>p_dim
+        sp.infer.susie_pca(X, z_dim=3, l_dim=l_dim)
+        # test z_dim<=0
+        sp.infer.susie_pca(X, z_dim=0, l_dim=l_dim)
+        # test X contain nan/inf
+        sp.infer.susie_pca(X_nan, z_dim, l_dim=l_dim)
+        sp.infer.susie_pca(X_inf, z_dim, l_dim=l_dim)
+        # test wrong init method
+        sp.infer.susie_pca(X, z_dim, l_dim, init="not sure")
