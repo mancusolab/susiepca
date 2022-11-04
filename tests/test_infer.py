@@ -3,9 +3,6 @@ import pytest
 
 import susiepca as sp
 
-# import pytest
-
-
 # set n_dim = 3, p_dim = 5, l_dim = 2, z_dim(k) = 2
 n_dim = 3
 p_dim = 5

@@ -14,8 +14,8 @@ def test_mse():
         [[-0.90, -0.50, 0.40], [-1.17, -1.47, 0.91], [-0.32, 0.52, 1.36]]
     )
 
-    expected_res = 0.1981
-    actual_res = sp.metrics.mse(X, Xhat)
+    expected_res = 0.1980826
+    actual_res = float(sp.metrics.mse(X, Xhat))
 
     assert pytest.approx(expected_res) == actual_res
 
