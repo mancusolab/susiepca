@@ -115,8 +115,8 @@ def init_params(
     X: jnp.ndarray,
     z_dim: int,
     l_dim: int,
+    tau: float,
     init: _init_type = "pca",
-    tau: float = 10.0,
 ) -> ModelParams:
     """Initialize parameters for SuSiE PCA.
 
@@ -137,6 +137,7 @@ def init_params(
     """
 
     tau_0 = jnp.ones((l_dim, z_dim))
+    tau = tau
 
     n_dim, p_dim = X.shape
 
@@ -476,6 +477,7 @@ def susie_pca(
     X: jnp.ndarray,
     z_dim: int,
     l_dim: int,
+    tau: float = 1.0,
     center: bool = False,
     init: _init_type = "pca",
     seed: int = 0,
@@ -489,6 +491,7 @@ def susie_pca(
         X: Input data. Should be a array-like
         z_dim: Latent factor dimension (int; K)
         l_dim: Number of single-effects comprising each factor (int; L)
+        tau: initial value of residual precision (default = 1)
         center: Whether to center and scale the input data with mean 0
                 and variance 1 (default = False)
         init: How to initialize the variational mean parameters for latent factors.
@@ -565,7 +568,7 @@ def susie_pca(
 
     # initialize PRNGkey and params
     rng_key = random.PRNGKey(seed)
-    params = init_params(rng_key, X, z_dim, l_dim, init, tau=10)
+    params = init_params(rng_key, X, z_dim, l_dim, tau, init)
 
     # run inference
     elbo = -5e25
