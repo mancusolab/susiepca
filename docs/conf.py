@@ -148,9 +148,19 @@ python_apigen_show_base_classes = False
 python_transform_type_annotations_pep585 = False
 python_transform_type_annotations_pep604 = True
 python_transform_type_annotations_concise_literal = True
+python_strip_self_type_annotations = True
+
+python_type_aliases = {
+    "jnp.ndarray": "jax.numpy.ndarray",
+}
+
+python_module_names_to_strip_from_xrefs = [
+    "jax._src.numpy.lax_numpy",
+]
 
 # fix namedtuple attribute types
 napoleon_use_ivar = True
+napoleon_google_docstring = True
 
 python_apigen_rst_prolog = """
 .. default-role:: py:obj
