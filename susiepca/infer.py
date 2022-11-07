@@ -2,7 +2,6 @@ from typing import Literal, NamedTuple, Union, get_args
 
 import jax.numpy as jnp
 from jax import jit, lax, nn, random
-from sklearn.decomposition import PCA
 
 # TODO: append internal functions to have '_'
 
@@ -137,7 +136,6 @@ def init_params(
     """
 
     tau_0 = jnp.ones((l_dim, z_dim))
-    tau = tau
 
     n_dim, p_dim = X.shape
 
@@ -148,8 +146,8 @@ def init_params(
 
     if init == "pca":
         # run PCA and extract weights and latent
-        pca = PCA(n_components=z_dim)
-        init_mu_z = pca.fit_transform(X)
+        svd_result = jnp.linalg.svd(X - jnp.mean(X, axis=0))
+        init_mu_z = svd_result[0] @ jnp.diag(svd_result[1])[:, 0:z_dim]
     elif init == "random":
         # random initialization
         init_mu_z = random.normal(mu_key, shape=(n_dim, z_dim))

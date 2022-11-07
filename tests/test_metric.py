@@ -1,4 +1,4 @@
-import numpy as np
+import jax.numpy as jnp
 import pytest
 
 import susiepca as sp
@@ -6,11 +6,11 @@ import susiepca as sp
 
 # define the test for MSE
 def test_mse():
-    X = np.array([[-0.58, -0.43, 0.70], [-0.50, -1.22, 0.91]])
+    X = jnp.array([[-0.58, -0.43, 0.70], [-0.50, -1.22, 0.91]])
 
-    Xhat = np.array([[-0.90, -0.50, 0.40], [-1.17, -1.47, 0.91]])
+    Xhat = jnp.array([[-0.90, -0.50, 0.40], [-1.17, -1.47, 0.91]])
 
-    Xhat_wrongshape = np.array(
+    Xhat_wrongshape = jnp.array(
         [[-0.90, -0.50, 0.40], [-1.17, -1.47, 0.91], [-0.32, 0.52, 1.36]]
     )
 
