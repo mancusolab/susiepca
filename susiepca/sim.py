@@ -41,13 +41,11 @@ def generate_sim(
         p_dim: Number of feature in the data
         z_dim: Number of Latent dimensions
         effect_size: The effect size of features contributing to the factor.
-                      The default is 1.
+                      (default = 1).
 
     Returns:
-        Z: Simulated factors (N by K)
-        W: Simulated factor loadings (K by P)
-        X: Simulated data (N by P)
-
+        SimulatedData: Tuple that contains simulated factors (`N x K`),
+        W (factor loadings (`K x P`), and data X (data (`N x P`).
     """
     rng_key = random.PRNGKey(seed)
     rng_key, z_key, b_key, obs_key = random.split(rng_key, 4)

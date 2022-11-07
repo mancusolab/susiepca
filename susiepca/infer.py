@@ -284,7 +284,7 @@ def update_tau(X, params):
 
 
 #
-def compute_elbo(X, params) -> ELBOResults:
+def compute_elbo(X: jnp.ndarray, params: ModelParams) -> ELBOResults:
     """Create function to compute evidence lower bound (ELBO)
 
     Args:
@@ -350,7 +350,7 @@ def compute_pip(params: ModelParams) -> jnp.ndarray:
         params: instance of infered parameters
 
     Returns:
-        Array of posterior inclusion probabilities (PIPs) for each of
+        jnp.ndarray: Array of posterior inclusion probabilities (PIPs) for each of
         `K x P` factor, feature combinations
     """
 
@@ -366,8 +366,8 @@ def compute_pve(params: ModelParams) -> jnp.ndarray:
         params: instance of infered parameters
 
     Returns:
-        Array of length `K` that contains percent of variance explained by each
-        factor (PVE)
+        jnp.ndarray: Array of length `K` that contains percent of variance
+        explained by each factor (PVE)
     """
 
     n_dim, z_dim = params.mu_z.shape
@@ -501,7 +501,7 @@ def susie_pca(
             iteration
 
     Returns:
-        A :py:obj:`SuSiEPCAResults` instance that has member variables for learned
+        :py:obj:`SuSiEPCAResults`: tuple that has member variables for learned
         parameters (:py:obj:`ModelParams`), evidence lower bound (ELBO) results
         (:py:obj:`ELBOResults`) from the last iteration, the percent of variance
         explained (PVE) for each of the `K` factors (:py:obj:`jax.numpy.ndarray`),
