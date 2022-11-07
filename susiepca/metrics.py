@@ -1,5 +1,7 @@
 import jax.numpy as jnp
 
+# from jax import jit
+
 __all__ = [
     "mse",
     "get_credset",
@@ -51,6 +53,32 @@ def get_credset(params, rho=0.9):
                 idx = idxs[ldx][zdx][pdx]
                 cs_s[ldx].append(idx)
                 local += params.alpha[ldx, zdx, idx]
+        cs["z" + str(zdx)] = cs_s
+
+    return cs
+
+
+def get_credset_v2(params, rho=0.9):
+    l_dim, z_dim, p_dim = params.alpha.shape
+    idxs = jnp.argsort(-params.alpha, axis=-1)
+    cs = {}
+    for zdx in range(z_dim):
+        cs_s = []
+        for ldx in range(l_dim):
+            cs_s.append([])
+
+            # idxs for all feature at this zdx and ldx
+            p_idxs = idxs[ldx, zdx, :]
+            # compute the cumulative sum
+            p_sums = jnp.cumsum(params.alpha[ldx, zdx, p_idxs])
+            # find all the index where the cumsum>rho
+            p_gts = jnp.where(p_sums >= rho)[0]
+            # get the minimum value that satisfy the above criterion
+            min_p_gts = p_gts[0]
+            # form the cs. note it's possible that min_p_gets is 0
+            idx = p_idxs[0 : max(min_p_gts, 1)]
+            cs_s[ldx].append(idx)
+
         cs["z" + str(zdx)] = cs_s
 
     return cs
