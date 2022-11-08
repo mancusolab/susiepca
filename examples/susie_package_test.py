@@ -5,8 +5,8 @@ import sys
 from csv import writer
 from time import time
 
-# import numpy as np
-# import procrustes
+import numpy as np
+import procrustes
 from jax.config import config
 
 import susiepca as sp
@@ -31,6 +31,12 @@ def main(args):
         "--real-l-dim", default=40, type=int, help="Number of real single effects"
     )
     argp.add_argument(
+        "--tol", default=1e-1, type=float, help="Delta ELBO threshold to stop VI"
+    )
+    argp.add_argument(
+        "--max-iter", default=150, type=int, help="Maximum number of iterations for VI"
+    )
+    argp.add_argument(
         "-o",
         "--output",
         type=str,
@@ -42,10 +48,8 @@ def main(args):
     config.update("jax_enable_x64", True)
     config.update("jax_platform_name", "gpu")
 
-    # loading_df = pd.DataFrame()
-
     for sim in range(args.n_sim):
-        # sim data
+        # simulate data
         Z, W, X = sp.sim.generate_sim(
             seed=sim,
             l_dim=args.real_l_dim,
@@ -54,32 +58,42 @@ def main(args):
             z_dim=args.real_z_dim,
             effect_size=1,
         )
+
+        # start inference
         print(f"Begin inference at simulation {sim}")
         start_susie = time()
         # run inference
         results = sp.infer.susie_pca(
-            X, z_dim=args.z_dim, l_dim=args.l_dim, tau=10, verbose=False
+            X,
+            z_dim=args.z_dim,
+            l_dim=args.l_dim,
+            tau=10,
+            tol=args.tol,
+            max_iter=args.max_iter,
+            verbose=False,
         )
         end_susie = time()
         run_susie = end_susie - start_susie
 
-        # calculate error
+        # calculate procruste error
         W_hat = results.W
-        # proc_trans_susie = procrustes.orthogonal(
-        #    np.asarray(W_hat.T), np.asarray(W.T), scale=True
-        # )
-        # error_susie = proc_trans_susie.error
-        # compute the predicted data
+        proc_trans_susie = procrustes.orthogonal(
+            np.asarray(W_hat.T), np.asarray(W.T), scale=True
+        )
+        error_susie = proc_trans_susie.error
+
+        # compute the rrmse
         X_hat = results.params.mu_z @ W_hat
         rrmse_susie = sp.metrics.mse(X, X_hat)
 
+        # summarize results
         summary = [
             sim,
             args.n_dim,
             args.p_dim,
             args.z_dim,
             args.l_dim,
-            # error_susie,
+            error_susie,
             rrmse_susie,
             run_susie,
         ]
