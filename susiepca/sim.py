@@ -51,6 +51,11 @@ def generate_sim(
         SimulatedData: Tuple that contains simulated factors (`N x K`),
         W (factor loadings (`K x P`), and data X (data (`N x P`).
     """
+
+    # interger seed
+    if isinstance(seed, int) is False:
+        raise ValueError(f"seed should be an interger: received seed = {seed}")
+
     rng_key = random.PRNGKey(seed)
     rng_key, z_key, b_key, obs_key = random.split(rng_key, 4)
 
