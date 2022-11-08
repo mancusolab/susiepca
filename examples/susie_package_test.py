@@ -21,7 +21,7 @@ def main(args):
     argp = ap.ArgumentParser(description="")
     argp.add_argument("--n-sim", default=100, type=int, help="number of simulations")
     argp.add_argument("--n-dim", default=1000, type=int, help="Number of samples")
-    argp.add_argument("--p-dim", default=6, type=int, help="Number of features")
+    argp.add_argument("--p-dim", default=6000, type=int, help="Number of features")
     argp.add_argument("--z-dim", default=4, type=int, help="Number of latent factors")
     argp.add_argument(
         "--real-z-dim", default=4, type=int, help="Number of real latent factors"
