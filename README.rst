@@ -148,7 +148,7 @@ The returned "results" contain 5 different objects:
 
 To mathmatically compute the Procrustes error of the estimate loading matrix, you need to install the Procruste package
 to solve the rotation problem (see `procrustes installation guide <https://procrustes.readthedocs.io/en/latest/usr_doc_installization.html>`_
-for Procrustes method). Then one can compute the Procrustes error as following:
+for Procrustes method). Once the loading matrix is rotated to its original direction, one can compute the Procrustes error and look at heatmap as following:
 
 .. code:: python
 
@@ -158,6 +158,10 @@ for Procrustes method). Then one can compute the Procrustes error as following:
    # perform procruste transformation
    proc_trans_susie = procrustes.orthogonal(np.asarray(W_hat.T), np.asarray(W.T), scale=True)
    print(f"The Procrustes error for the loading matrix is {proc_trans_susie.error}")
+   
+   # Heatmap of transformed loading matrix
+   W_trans = proc_trans_susie.t.T @ W_hat
+   sns.heatmap(W_trans, cmap = div, fmt = ".2f", center = 0)
 
 You can also calculate the relative root mean square error (RRMSE) to assess the model prediction performance
 
