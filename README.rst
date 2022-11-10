@@ -45,7 +45,7 @@ uncertainty of contributing features for each latent component through posterior
 implement the model with the `JAX <https://github.com/google/jax>`_ library developed by Google which enable the fast
 training on CPU, GPU or TPU.
 
-|Documentation|_ | |Installation|_ | |Example|_ | |Notes|_ | |References|_
+|Documentation|_ | |Installation|_ | |Example|_ | |Notes|_ | |References|_ | |Support|_
 
 Model Description
 =================
@@ -212,6 +212,14 @@ References
 ==========
 .. [1] Wang, G., Sarkar, A., Carbonetto, P. and Stephens, M. (2020), A simple new approach to variable selection in regression, with application to genetic fine mapping. J. R. Stat. Soc. B, 82: 1273-1300. https://doi.org/10.1111/rssb.12388
 .. [2] Tipping, M.E. and Bishop, C.M. (1999), Probabilistic Principal Component Analysis. Journal of the Royal Statistical Society: Series B (Statistical Methodology), 61: 611-622. https://doi.org/10.1111/1467-9868.00196
+
+.. _Support:
+.. |Support| replace:: **Support**
+
+Support
+=======
+Please report any bugs or feature requests in the `Issue Tracker <https://github.com/mancusolab/susiepca/issues>`_. If you have any 
+questions or comments please contact dongyuan@usc.edu and/or nmancuso@usc.edu. 
 
 ---------------------
 
