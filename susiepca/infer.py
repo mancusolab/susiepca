@@ -146,7 +146,7 @@ def init_params(
 
     if init == "pca":
         # run PCA and extract weights and latent
-        svd_result = jnp.linalg.svd(X - jnp.mean(X, axis=0))
+        svd_result = jnp.linalg.svd(X - jnp.mean(X, axis=0), full_matrices=False)
         init_mu_z = svd_result[0] @ jnp.diag(svd_result[1])[:, 0:z_dim]
     elif init == "random":
         # random initialization
