@@ -152,10 +152,10 @@ for Procrustes method). Once the loading matrix is rotated to its original direc
 
 .. code:: python
 
-   import procrutes
+   import procrustes
    import numpy as np
 
-   # perform procruste transformation
+   # perform procrustes transformation
    proc_trans_susie = procrustes.orthogonal(np.asarray(W_hat.T), np.asarray(W.T), scale=True)
    print(f"The Procrustes error for the loading matrix is {proc_trans_susie.error}")
    
