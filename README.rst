@@ -87,7 +87,7 @@ be supported soon).
 
 .. code:: bash
 
-   git clone https://github.com:mancusolab/susiepca.git
+   git clone https://github.com/mancusolab/susiepca.git
    cd susiepca
    pip install -e .
 
