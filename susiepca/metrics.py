@@ -59,6 +59,18 @@ def get_credset(alpha, rho=0.9):
 
 
 def get_credset_v2(alpha, rho=0.9):
+
+    """Creat a function to compute the rho-level credible set
+
+    Args:
+        alpha: the posterior probability in the params object return by susie pca
+        rho: the level from credible set, should ranged in (0,1)
+
+    Returns:
+        cs: credible set, which is a dictionary contain K*P credible sets
+
+    """
+
     l_dim, z_dim, p_dim = alpha.shape
     idxs = jnp.argsort(-alpha, axis=-1)
     cs = {}
