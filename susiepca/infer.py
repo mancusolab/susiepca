@@ -500,7 +500,6 @@ def susie_pca(
         tol: Numerical tolerance for ELBO convergence (float)
         verbose: Flag to indicate displaying log information (ELBO value) in each
             iteration
-        output: The path to save the SuSiE PCA results to local drive (default=None)
 
     Returns:
         :py:obj:`SuSiEPCAResults`: tuple that has member variables for learned
@@ -595,19 +594,5 @@ def susie_pca(
 
     # compute PIPs
     pip = compute_pip(params)
-
-    # save results
-    if output is not None:
-        print("Save results from SuSiE PCA")
-        import numpy as np
-
-        np.savetxt(f"{output}/pip.txt", pip)
-        np.savetxt(f"{output}/pve.txt", pve)
-        import pickle
-
-        params_file = open(f"{output}/params_file.pkl", "wb")
-        pickle.dump(params, params_file)
-        params_file.close()
-        print(f"Results saved successfully at {output}")
 
     return SuSiEPCAResults(params, elbo_res, pve, pip, W)
