@@ -5,14 +5,11 @@ from importlib.metadata import PackageNotFoundError, version  # pragma: no cover
 from infer import *
 from metrics import *
 from sim import *
+from utils import *
 """
-from susiepca import infer, metrics, sim
+from susiepca import infer, metrics, sim, utils
 
-__all__ = [
-    "infer",
-    "metrics",
-    "sim",
-]
+__all__ = ["infer", "metrics", "sim", "utils"]
 
 try:
     # Change here if project is renamed and does not equal the package name
