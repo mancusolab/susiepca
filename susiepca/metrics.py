@@ -77,8 +77,6 @@ def get_credset_v2(alpha, rho=0.9):
     for zdx in range(z_dim):
         cs_s = []
         for ldx in range(l_dim):
-            cs_s.append([])
-
             # idxs for all feature at this zdx and ldx
             p_idxs = idxs[ldx, zdx, :]
             # compute the cumulative sum
@@ -89,7 +87,7 @@ def get_credset_v2(alpha, rho=0.9):
             min_p_gts = p_gts[0]
             # form the cs
             idx = p_idxs[0 : min_p_gts + 1]
-            cs_s[ldx].append(idx)
+            cs_s.append(idx.tolist())
 
         cs["z" + str(zdx)] = cs_s
 
