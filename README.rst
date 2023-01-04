@@ -175,11 +175,11 @@ You can also calculate the relative root mean square error (RRMSE) to assess the
    # compute the RRMSE
    rrmse_susie = metrics.mse(X, X_hat)
 
-5. Finally we also provide the function to compute a $\\rho-$ level credible set
+5. Finally we also provide a neat function to compute a $\\rho-$ level credible sets (CS). The cs returned by the function is composed of $L \\times K$ credible sets, each of them contain a subset of variables that cumulatively explain at least $\\rho$ of the posterior density.
 
 .. code:: python
 
-   cs = sp.metrics.get_credset(results.params, rho=0.9)
+   cs = sp.metrics.get_credset_v2(results.params.alpha, rho=0.9)
 
 .. _Notes:
 .. |Notes| replace:: **Notes**
