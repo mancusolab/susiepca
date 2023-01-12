@@ -58,22 +58,35 @@ def get_credset(alpha, rho=0.9):
     return cs
 
 
-def get_credset_v2(alpha, rho=0.9):
+def get_credset_v2(alpha, feature_label: list = None, rho=0.9) -> dict:
 
     """Creat a function to compute the rho-level credible set
 
     Args:
         alpha: the posterior probability in the params object return by susie pca
+        feature_label: the label of the feature from the original dataset
         rho: the level from credible set, should ranged in (0,1)
 
     Returns:
         cs: credible set, which is a dictionary contain K*P credible sets
 
     """
-
     l_dim, z_dim, p_dim = alpha.shape
+
+    if feature_label is None:
+        feature_label = list(range(p_dim))
+        print("Feature label is not provided, use the interger sequence instead.")
+    else:
+        if len(feature_label) != p_dim:
+            print(
+                f"Feature label dimension dose not match:\
+                    Input data has {p_dim} features while\
+                    the feature label is length of {len(feature_label)}"
+            )
+    # sort the posterior probs. of each single effect from each factor
     idxs = jnp.argsort(-alpha, axis=-1)
     cs = {}
+
     for zdx in range(z_dim):
         cs_s = []
         for ldx in range(l_dim):
@@ -87,7 +100,10 @@ def get_credset_v2(alpha, rho=0.9):
             min_p_gts = p_gts[0]
             # form the cs
             idx = p_idxs[0 : min_p_gts + 1]
-            cs_s.append(idx.tolist())
+            idx_list = idx.tolist()
+            # form the cs with the feature label
+            feature_list = [feature_label[i] for i in idx_list]
+            cs_s.append(feature_list)
 
         cs["z" + str(zdx)] = cs_s
 
