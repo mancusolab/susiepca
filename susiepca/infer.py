@@ -332,8 +332,8 @@ def compute_elbo(X: jnp.ndarray, params: ModelParams) -> ELBOResults:
     negKL_w = -0.5 * jnp.sum(params.alpha * klw_term2)
 
     # neg-KL for gamma
-    negKL_gamma = -jnp.sum(
-        params.alpha * (jnp.log(params.alpha + 1e-10) - jnp.log(params.pi))
+    negKL_gamma = -jnp.nansum(
+        params.alpha * (jnp.log(params.alpha) - jnp.log(params.pi))
     )
 
     elbo = E_ll + negKL_z + negKL_w + negKL_gamma
@@ -354,7 +354,7 @@ def compute_pip(params: ModelParams) -> jnp.ndarray:
         `K x P` factor, feature combinations
     """
 
-    pip = 1 - jnp.prod(1 - params.alpha, axis=0)
+    pip = 1 - jnp.exp(jnp.sum(jnp.log1p(-params.alpha), axis=-1))
 
     return pip
 
