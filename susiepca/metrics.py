@@ -26,39 +26,7 @@ def mse(X: jnp.ndarray, Xhat: jnp.ndarray) -> float:
     return mse
 
 
-def get_credset(alpha, rho=0.9):
-
-    """Creat a function to compute the rho-level credible set
-
-    Args:
-        alpha: the posterior probability in the params object return by susie pca
-        rho: the level from credible set, should ranged in (0,1)
-
-    Returns:
-        cs: credible set, which is a dictionary contain K*P credible sets
-
-    """
-
-    l_dim, z_dim, p_dim = alpha.shape
-    idxs = jnp.argsort(-alpha, axis=-1)
-    cs = {}
-    for zdx in range(z_dim):
-        cs_s = []
-        for ldx in range(l_dim):
-            cs_s.append([])
-            local = 0.0
-            for pdx in range(p_dim):
-                if local >= rho:
-                    break
-                idx = idxs[ldx][zdx][pdx]
-                cs_s[ldx].append(idx)
-                local += alpha[ldx, zdx, idx]
-        cs["z" + str(zdx)] = cs_s
-
-    return cs
-
-
-def get_credset_v2(alpha, feature_label: list = None, rho=0.9) -> dict:
+def get_credset(alpha, feature_label: list = None, rho=0.9) -> dict:
 
     """Creat a function to compute the rho-level credible set
 
