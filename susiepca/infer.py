@@ -482,7 +482,6 @@ def susie_pca(
     max_iter: int = 200,
     tol: float = 1e-3,
     verbose: bool = True,
-    output: str = None,
 ) -> SuSiEPCAResults:
     """The main inference function for SuSiE PCA.
 
