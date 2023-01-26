@@ -354,7 +354,7 @@ def compute_pip(params: ModelParams) -> jnp.ndarray:
         `K x P` factor, feature combinations
     """
 
-    pip = 1 - jnp.exp(jnp.sum(jnp.log1p(-params.alpha), axis=-1))
+    pip = 1 - jnp.exp(jnp.sum(jnp.log1p(-params.alpha), axis=0))
 
     return pip
 
