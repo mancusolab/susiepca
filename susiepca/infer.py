@@ -312,7 +312,7 @@ def compute_elbo(X: ArrayLike, params: ModelParams) -> ELBOResults:
     # (X.T @ E[Z] @ E[W]) is p x p (big!); compute (E[W] @ X.T @ E[Z]) (k x k)
     E_ll = (-0.5 * params.tau) * (
         jnp.sum(X ** 2)  # tr(X.T @ X)
-        - 2 * jnp.einsum("kp,np,nk", E_W, X, params.mu_z)  # tr(E[W] @ X.T @ E[Z])
+        - 2 * jnp.einsum("kp,np,nk->", E_W, X, params.mu_z)  # tr(E[W] @ X.T @ E[Z])
         + jnp.einsum("ij,ji->", E_ZZ, E_WW)  # tr(E[Z.T @ Z] @ E[W @ W.T])
     ) + 0.5 * n_dim * p_dim * jnp.log(
         params.tau
