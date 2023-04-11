@@ -2,6 +2,8 @@ from typing import Literal, NamedTuple, Union, get_args
 
 import jax.numpy as jnp
 from jax import jit, lax, nn, random
+from jax import Array
+from jax.typing import ArrayLike
 
 # TODO: append internal functions to have '_'
 
@@ -18,7 +20,7 @@ __all__ = [
 
 
 _init_type = Literal["pca", "random"]
-
+FloatOrArray = Union[float, Array]
 
 def logdet(A):
     sign, ldet = jnp.linalg.slogdet(A)
@@ -44,22 +46,22 @@ class ModelParams(NamedTuple):
     """
 
     # variational params for Z
-    mu_z: jnp.ndarray
-    var_z: jnp.ndarray
+    mu_z: Array
+    var_z: Array
 
     # variational params for W given Gamma
-    mu_w: jnp.ndarray
-    var_w: jnp.ndarray
+    mu_w: Array
+    var_w: Array
 
     # variational params for Gamma
-    alpha: jnp.ndarray
+    alpha: Array
 
     # residual precision param
-    tau: Union[float, jnp.ndarray]
-    tau_0: jnp.ndarray
+    tau: FloatOrArray
+    tau_0: Array
 
     # prior probability for gamma
-    pi: jnp.ndarray
+    pi: Array
 
 
 #
@@ -76,11 +78,11 @@ class ELBOResults(NamedTuple):
 
     """
 
-    elbo: Union[float, jnp.ndarray]
-    E_ll: Union[float, jnp.ndarray]
-    negKL_z: Union[float, jnp.ndarray]
-    negKL_w: Union[float, jnp.ndarray]
-    negKL_gamma: Union[float, jnp.ndarray]
+    elbo: FloatOrArray
+    E_ll: FloatOrArray
+    negKL_z: FloatOrArray
+    negKL_w: FloatOrArray
+    negKL_gamma: FloatOrArray
 
     def __str__(self):
         return (
@@ -104,14 +106,14 @@ class SuSiEPCAResults(NamedTuple):
 
     params: ModelParams
     elbo: ELBOResults
-    pve: jnp.ndarray
-    pip: jnp.ndarray
-    W: jnp.ndarray
+    pve: Array
+    pip: Array
+    W: Array
 
 
 def init_params(
     rng_key: random.PRNGKey,
-    X: jnp.ndarray,
+    X: ArrayLike,
     z_dim: int,
     l_dim: int,
     tau: float,
@@ -198,7 +200,7 @@ def compute_W_moment(params):
 
 # Update posterior mean and variance W
 def update_w(
-    RtZk: jnp.ndarray, E_zzk: jnp.ndarray, params: ModelParams, kdx: int, ldx: int
+    RtZk: ArrayLike, E_zzk: ArrayLike, params: ModelParams, kdx: int, ldx: int
 ) -> ModelParams:
     # n_dim, z_dim = params.mu_z.shape
 
@@ -284,7 +286,7 @@ def update_tau(X, params):
 
 
 #
-def compute_elbo(X: jnp.ndarray, params: ModelParams) -> ELBOResults:
+def compute_elbo(X: ArrayLike, params: ModelParams) -> ELBOResults:
     """Create function to compute evidence lower bound (ELBO)
 
     Args:
@@ -343,14 +345,14 @@ def compute_elbo(X: jnp.ndarray, params: ModelParams) -> ELBOResults:
     return result
 
 
-def compute_pip(params: ModelParams) -> jnp.ndarray:
+def compute_pip(params: ModelParams) -> Array:
     """Create a function to compute the posterior inclusion probabilities (PIPs).
 
     Args:
         params: instance of infered parameters
 
     Returns:
-        jnp.ndarray: Array of posterior inclusion probabilities (PIPs) for each of
+        Array: Array of posterior inclusion probabilities (PIPs) for each of
         `K x P` factor, feature combinations
     """
 
@@ -359,14 +361,14 @@ def compute_pip(params: ModelParams) -> jnp.ndarray:
     return pip
 
 
-def compute_pve(params: ModelParams) -> jnp.ndarray:
+def compute_pve(params: ModelParams) -> Array:
     """Create a function to compute the percent of variance explained (PVE).
 
     Args:
         params: instance of infered parameters
 
     Returns:
-        jnp.ndarray: Array of length `K` that contains percent of variance
+        Array: Array of length `K` that contains percent of variance
         explained by each factor (PVE)
     """
 
@@ -386,16 +388,16 @@ def compute_pve(params: ModelParams) -> jnp.ndarray:
 
 
 class _FactorLoopResults(NamedTuple):
-    X: jnp.ndarray
-    W: jnp.ndarray
-    EZZ: jnp.ndarray
+    X: Array
+    W: Array
+    EZZ: Array
     params: ModelParams
 
 
 class _EffectLoopResults(NamedTuple):
-    E_zzk: jnp.ndarray
-    RtZk: jnp.ndarray
-    Wk: jnp.ndarray
+    E_zzk: Array
+    RtZk: Array
+    Wk: Array
     k: int
     params: ModelParams
 
@@ -443,7 +445,7 @@ def _effect_loop(ldx: int, effect_params: _EffectLoopResults) -> _EffectLoopResu
 
 
 @jit
-def _inner_loop(X: jnp.ndarray, params: ModelParams):
+def _inner_loop(X: ArrayLike, params: ModelParams):
     n_dim, z_dim = params.mu_z.shape
     l_dim, _, _ = params.mu_w.shape
 
@@ -472,7 +474,7 @@ def _inner_loop(X: jnp.ndarray, params: ModelParams):
 
 
 def susie_pca(
-    X: jnp.ndarray,
+    X: ArrayLike,
     z_dim: int,
     l_dim: int,
     tau: float = 1.0,

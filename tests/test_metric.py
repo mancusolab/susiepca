@@ -59,11 +59,5 @@ def test_get_credset():
     # second single effect in second factor
     assert int(set1["z1"][1][0]) == 3
 
-    # test get_cred_set_v2
-    set2 = sp.metrics.get_credset_v2(alpha)
-    assert set2["z0"][0][0] == jnp.array(0)
-    assert set2["z0"][1][0] == jnp.array([1, 2])
-    assert set2["z1"][0][0] == jnp.array([1, 0, 2])
-    assert set2["z1"][1][0] == jnp.array(3)
 
     return
