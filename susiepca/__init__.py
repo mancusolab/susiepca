@@ -9,9 +9,9 @@ from sim import *
 from utils import *
 from io import *
 """
-from susiepca import infer, infer_annotate, io, metrics, sim, utils
+from susiepca import infer, io, metrics, sim, utils
 
-__all__ = ["infer", "metrics", "infer_annotate", "sim", "utils", "io"]
+__all__ = ["common", "infer", "metrics", "sim", "utils", "io"]
 
 try:
     # Change here if project is renamed and does not equal the package name

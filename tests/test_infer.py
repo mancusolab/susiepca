@@ -3,6 +3,7 @@ import pytest
 import jax.numpy as jnp
 
 import susiepca as sp
+import susiepca.common
 
 # set n_dim = 3, p_dim = 5, l_dim = 2, z_dim(k) = 2
 n_dim = 3
@@ -10,7 +11,7 @@ p_dim = 5
 l_dim = 2
 z_dim = 2
 
-params = sp.infer.ModelParams(
+params = susiepca.common.ModelParams(
     mu_z=jnp.array(
         [[1.5584918, -0.75374484], [1.1176406, 0.17358227], [-2.3289988, 0.59763706]]
     ),
@@ -66,6 +67,7 @@ params = sp.infer.ModelParams(
     ),
     tau=1,
     tau_0=jnp.array([[1.0, 1.0], [1.0, 1.0]]),
+    theta=None,
     pi=jnp.array([0.2, 0.2, 0.2, 0.2, 0.2]),
 )
 

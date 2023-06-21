@@ -2,7 +2,7 @@ import pickle
 
 import numpy as np
 
-from susiepca.infer import SuSiEPCAResults
+from susiepca.common import SuSiEPCAResults
 
 __all__ = ["save_results"]
 

@@ -1,25 +1,25 @@
-from typing import Literal, NamedTuple, Union, get_args
+from typing import get_args, Literal, NamedTuple, Optional, Tuple
 
-import jax.numpy as jnp
-from jax import Array, jit, lax, nn, random
+import optax
+from jax import Array, jit, lax, nn, random, numpy as jnp, grad
+from jax.scipy import special as spec
 from jax.typing import ArrayLike
-
-# TODO: append internal functions to have '_'
 
 
 __all__ = [
-    "ModelParams",
-    "ELBOResults",
-    "SuSiEPCAResults",
     "compute_elbo",
-    "compute_pip",
-    "compute_pve",
     "susie_pca",
 ]
 
+from susiepca.common import (
+    ELBOResults,
+    ModelParams,
+    SuSiEPCAResults,
+    compute_pip,
+    compute_pve,
+)
 
 _init_type = Literal["pca", "random"]
-FloatOrArray = Union[float, Array]
 
 
 def logdet(A):
@@ -27,178 +27,29 @@ def logdet(A):
     return ldet
 
 
-class ModelParams(NamedTuple):
-    """
-    Define the class for variational parameters of all the variable we need
-    to infer from the SuSiE PCA.
-
-    Attributes:
-        mu_z: mean parameter for factor Z
-        var_z: variance parameter for factor Z
-        mu_w: conditional mean parameter for loadings W
-        var_w: conditional variance parameter for loading W
-        alpha: parameter for the gamma that follows multinomial
-                distribution
-        tau: inverse variance parameter of observed data X
-        tau_0: inverse variance parameter of single effect w_kl
-        pi: prior probability for gamma
-
-    """
-
-    # variational params for Z
-    mu_z: Array
-    var_z: Array
-
-    # variational params for W given Gamma
-    mu_w: Array
-    var_w: Array
-
-    # variational params for Gamma
-    alpha: Array
-
-    # residual precision param
-    tau: FloatOrArray
-    tau_0: Array
-
-    # prior probability for gamma
-    pi: Array
+def _compute_pi(A: ArrayLike, theta: ArrayLike) -> Array:
+    return nn.softmax(A @ theta, axis=0)
 
 
-#
-class ELBOResults(NamedTuple):
-
-    """Define the class of all components in ELBO.
-
-    Attributes:
-        elbo: the value of ELBO
-        E_ll: Expectation of log-likelihood
-        negKL_z: -KL divergence of Z
-        negKL_w: -KL divergence of W
-        negKL_gamma: -KL divergence of gamma
-
-    """
-
-    elbo: FloatOrArray
-    E_ll: FloatOrArray
-    negKL_z: FloatOrArray
-    negKL_w: FloatOrArray
-    negKL_gamma: FloatOrArray
-
-    def __str__(self):
-        return (
-            f"ELBO = {self.elbo:.3f} | E[logl] = {self.E_ll:.3f} | "
-            f"-KL[Z] = {self.negKL_z:.3f} | -KL[W] = {self.negKL_w:.3f} | "
-            f"-KL[G] = {self.negKL_gamma:.3f}"
-        )
+def _kl_gamma(alpha: ArrayLike, pi: ArrayLike) -> float:
+    return jnp.sum(spec.xlogy(alpha, alpha) - spec.xlogy(alpha, pi.T))
 
 
-class SuSiEPCAResults(NamedTuple):
-    """Define the results object returned by function :py:obj:`susie_pca`.
-
-    Attributes:
-        params: the dictionary contain all the infered parameters
-        elbo: the value of ELBO
-        pve: the ndarray of percent of variance explained
-        pip: the ndarray of posterior inclusion probabilities
-        W: the posterior mean parameter for loadings
-
-    """
-
-    params: ModelParams
-    elbo: ELBOResults
-    pve: Array
-    pip: Array
-    W: Array
-
-
-def init_params(
-    rng_key: random.PRNGKey,
-    X: ArrayLike,
-    z_dim: int,
-    l_dim: int,
-    tau: float,
-    init: _init_type = "pca",
-) -> ModelParams:
-    """Initialize parameters for SuSiE PCA.
-
-    Args:
-        rng_key: Random number generator seed
-        X: Input data. Should be a array-like
-        z_dim: Latent factor dimension (K)
-        l_dim: Number of single-effects comprising each factor ( L)
-        init: How to initialize the variational mean parameters for latent factors.
-            Either "pca" or "random" (default = "pca")
-        tau: initial value of residual precision
-
-    Returns:
-        ModelParams: initialized set of model parameters.
-
-    Raises:
-        ValueError: Invalid initialization scheme.
-    """
-
-    tau_0 = jnp.ones((l_dim, z_dim))
-
-    n_dim, p_dim = X.shape
-
-    rng_key, mu_key, var_key, muw_key, varw_key = random.split(rng_key, 5)
-
-    # pull type options for init
-    type_options = get_args(_init_type)
-
-    if init == "pca":
-        # run PCA and extract weights and latent
-        svd_result = jnp.linalg.svd(X - jnp.mean(X, axis=0), full_matrices=False)
-        init_mu_z = svd_result[0] @ jnp.diag(svd_result[1])[:, 0:z_dim]
-    elif init == "random":
-        # random initialization
-        init_mu_z = random.normal(mu_key, shape=(n_dim, z_dim))
-    else:
-        raise ValueError(
-            f"Unknown initialization provided '{init}'; Choices: {type_options}"
-        )
-
-    init_var_z = jnp.diag(random.normal(var_key, shape=(z_dim,)) ** 2)
-
-    # each w_kl has a specific variance term
-    init_mu_w = random.normal(muw_key, shape=(l_dim, z_dim, p_dim)) * 1e-3
-    init_var_w = (1 / tau_0) * (random.normal(varw_key, shape=(l_dim, z_dim))) ** 2
-
-    rng_key, alpha_key = random.split(rng_key, 2)
-    init_alpha = random.dirichlet(
-        alpha_key, alpha=jnp.ones(p_dim), shape=(l_dim, z_dim)
-    )
-
-    pi = jnp.ones(p_dim) / p_dim
-
-    return ModelParams(
-        init_mu_z,
-        init_var_z,
-        init_mu_w,
-        init_var_w,
-        init_alpha,
-        tau,
-        tau_0,
-        pi=pi,
-    )
-
-
-# Create a function to compute the first and second moment of W
-def compute_W_moment(params):
+def _compute_w_moment(params: ModelParams) -> Tuple[Array, Array]:
     trace_var = jnp.sum(
         params.var_w[:, :, jnp.newaxis] * params.alpha
         + (params.mu_w**2 * params.alpha * (1 - params.alpha)),
         axis=(-1, 0),
     )
 
-    E_W = jnp.sum(params.mu_w * params.alpha, axis=0)
+    E_W = params.W
     E_WW = E_W @ E_W.T + jnp.diag(trace_var)
 
     return E_W, E_WW
 
 
 # Update posterior mean and variance W
-def update_w(
+def _update_w(
     RtZk: ArrayLike, E_zzk: ArrayLike, params: ModelParams, kdx: int, ldx: int
 ) -> ModelParams:
     # n_dim, z_dim = params.mu_z.shape
@@ -217,14 +68,14 @@ def update_w(
 
 
 # Compute log of Bayes factor
-def log_bf_np(z, s2, s0):
+def _log_bf_np(z: ArrayLike, s2: ArrayLike, s0: ArrayLike):
     return 0.5 * (jnp.log(s2) - jnp.log(s2 + 1 / s0)) + 0.5 * z**2 * (
         (1 / s0) / (s2 + 1 / s0)
     )
 
 
 # Update tau_0 based on MLE
-def update_tau0_mle(params):
+def _update_tau0_mle(params: ModelParams) -> ModelParams:
     # l_dim, z_dim, p_dim = params.mu_w.shape
 
     est_varw = params.mu_w**2 + params.var_w[:, :, jnp.newaxis]
@@ -235,12 +86,14 @@ def update_tau0_mle(params):
 
 
 # Update posterior of alpha using Bayes factor
-def update_alpha_bf(RtZk, E_zzk, params, kdx, ldx):
+def _update_alpha_bf(
+    RtZk: ArrayLike, E_zzk: ArrayLike, params: ModelParams, kdx: int, ldx: int
+) -> ModelParams:
     Z_s = (RtZk / E_zzk) * jnp.sqrt(E_zzk * params.tau)
     s2_s = 1 / (E_zzk * params.tau)
     s20_s = params.tau_0[ldx, kdx]
 
-    log_bf = log_bf_np(Z_s, s2_s, s20_s)
+    log_bf = _log_bf_np(Z_s, s2_s, s20_s)
     log_alpha = jnp.log(params.pi) + log_bf
     alpha_kl = nn.softmax(log_alpha)
 
@@ -252,8 +105,8 @@ def update_alpha_bf(RtZk, E_zzk, params, kdx, ldx):
 
 
 # Update Posterior mean and variance of Z
-def update_z(X, params):
-    E_W, E_WW = compute_W_moment(params)
+def _update_z(X: ArrayLike, params: ModelParams) -> ModelParams:
+    E_W, E_WW = _compute_w_moment(params)
     z_dim, p_dim = E_W.shape
 
     update_var_z = jnp.linalg.inv(params.tau * E_WW + jnp.identity(z_dim))
@@ -263,7 +116,7 @@ def update_z(X, params):
 
 
 # Update tau based on MLE
-def update_tau(X, params):
+def _update_tau(X: ArrayLike, params: ModelParams) -> ModelParams:
     n_dim, z_dim = params.mu_z.shape
     l_dim, z_dim, p_dim = params.mu_w.shape
 
@@ -271,7 +124,7 @@ def update_tau(X, params):
     E_ZZ = params.mu_z.T @ params.mu_z + n_dim * params.var_z
 
     # calculate moment of W
-    E_W, E_WW = compute_W_moment(params)
+    E_W, E_WW = _compute_w_moment(params)
 
     # expectation of log likelihood
     E_ss = (
@@ -284,12 +137,50 @@ def update_tau(X, params):
     return params._replace(tau=u_tau)
 
 
-#
+def _update_theta(
+    params: ModelParams,
+    A: ArrayLike,
+    lr: float = 1e-2,
+    tol: float = 1e-3,
+    max_iter: int = 100,
+) -> ModelParams:
+    optimizer = optax.adam(lr)
+    init_opt_state = optimizer.init(params.theta)
+
+    def _loss(theta_i: ArrayLike) -> float:
+        pi = _compute_pi(A, theta_i)
+        return _kl_gamma(params.alpha, pi)
+
+    def body_fun(inputs):
+        old_theta, theta, idx, opt_state = inputs
+        grads = grad(_loss)(theta)
+        updates, new_optimizer_state = optimizer.update(grads, opt_state)
+        new_theta = optax.apply_updates(theta, updates)
+        old_theta = theta
+        return old_theta, new_theta, idx + 1, new_optimizer_state
+
+    # define a function to check the stopping criterion
+    def cond_fn(inputs):
+        old_theta, theta, idx, _ = inputs
+        tol_check = jnp.linalg.norm(theta - old_theta) > tol
+        iter_check = idx > max_iter
+        return jnp.logical_and(tol_check, iter_check)
+
+    # use jax.lax.while_loop until the change in parameters is less than a given tolerance
+    old_theta, theta, idx_count, opt_state = lax.while_loop(
+        cond_fn,
+        body_fun,
+        (jnp.zeros_like(params.theta), params.theta, 0, init_opt_state),
+    )
+
+    return params._replace(theta=theta, pi=_compute_pi(A, theta))
+
+
 def compute_elbo(X: ArrayLike, params: ModelParams) -> ELBOResults:
     """Create function to compute evidence lower bound (ELBO)
 
     Args:
-        X: the observed data, a N by P ndarray
+        X: the observed data, an N by P ndarray
         params: the dictionary contains all the infered parameters
 
     Returns:
@@ -304,7 +195,7 @@ def compute_elbo(X: ArrayLike, params: ModelParams) -> ELBOResults:
     E_ZZ = n_dim * params.var_z + params.mu_z.T @ params.mu_z
 
     # calculate moment of W
-    E_W, E_WW = compute_W_moment(params)
+    E_W, E_WW = _compute_w_moment(params)
 
     # expectation of log likelihood
     # calculation tip: tr(A @ A.T) = tr(A.T @ A) = sum(A ** 2)
@@ -333,57 +224,13 @@ def compute_elbo(X: ArrayLike, params: ModelParams) -> ELBOResults:
     negKL_w = -0.5 * jnp.sum(params.alpha * klw_term2)
 
     # neg-KL for gamma
-    negKL_gamma = -jnp.nansum(
-        params.alpha * (jnp.log(params.alpha) - jnp.log(params.pi))
-    )
+    negKL_gamma = -_kl_gamma(params.alpha, params.pi)
 
     elbo = E_ll + negKL_z + negKL_w + negKL_gamma
 
     result = ELBOResults(elbo, E_ll, negKL_z, negKL_w, negKL_gamma)
 
     return result
-
-
-def compute_pip(params: ModelParams) -> Array:
-    """Create a function to compute the posterior inclusion probabilities (PIPs).
-
-    Args:
-        params: instance of infered parameters
-
-    Returns:
-        Array: Array of posterior inclusion probabilities (PIPs) for each of
-        `K x P` factor, feature combinations
-    """
-
-    pip = 1 - jnp.exp(jnp.sum(jnp.log1p(-params.alpha), axis=0))
-
-    return pip
-
-
-def compute_pve(params: ModelParams) -> Array:
-    """Create a function to compute the percent of variance explained (PVE).
-
-    Args:
-        params: instance of infered parameters
-
-    Returns:
-        Array: Array of length `K` that contains percent of variance
-        explained by each factor (PVE)
-    """
-
-    n_dim, z_dim = params.mu_z.shape
-    W = jnp.sum(params.mu_w * params.alpha, axis=0)
-
-    z_dim, p_dim = W.shape
-
-    sk = jnp.zeros(z_dim)
-    for k in range(z_dim):
-        sk = sk.at[k].set(jnp.sum((params.mu_z[:, k, jnp.newaxis] * W[k, :]) ** 2))
-
-    s = jnp.sum(sk)
-    pve = sk / (s + p_dim * n_dim * (1 / params.tau))
-
-    return pve
 
 
 class _FactorLoopResults(NamedTuple):
@@ -434,8 +281,8 @@ def _effect_loop(ldx: int, effect_params: _EffectLoopResults) -> _EffectLoopResu
     E_RtZk = RtZk - E_zzk * Wkl
 
     # update conditional w_kl and alpha_kl based on current residual
-    params = update_w(E_RtZk, E_zzk, params, kdx, ldx)
-    params = update_alpha_bf(E_RtZk, E_zzk, params, kdx, ldx)
+    params = _update_w(E_RtZk, E_zzk, params, kdx, ldx)
+    params = _update_alpha_bf(E_RtZk, E_zzk, params, kdx, ldx)
 
     # update marginal w_kl
     Wk = Wkl + (params.mu_w[ldx, kdx] * params.alpha[ldx, kdx])
@@ -450,21 +297,55 @@ def _inner_loop(X: ArrayLike, params: ModelParams):
 
     # compute expected residuals
     # use posterior mean of Z, W, and Alpha to calculate residuals
-    W = jnp.sum(params.mu_w * params.alpha, axis=0)
+    W = params.W
     E_ZZ = params.mu_z.T @ params.mu_z + n_dim * params.var_z
 
     # update effect precision via MLE
-    params = update_tau0_mle(params)
+    params = _update_tau0_mle(params)
 
     # update locals (W, alpha)
     init_loop_param = _FactorLoopResults(X, W, E_ZZ, params)
     _, W, _, params = lax.fori_loop(0, z_dim, _factor_loop, init_loop_param)
 
     # update factor parameters
-    params = update_z(X, params)
+    params = _update_z(X, params)
 
     # update precision parameters via MLE
-    params = update_tau(X, params)
+    params = _update_tau(X, params)
+
+    # compute elbo
+    elbo_res = compute_elbo(X, params)
+
+    return elbo_res, params
+
+
+@jit
+def _annotation_inner_loop(X: jnp.ndarray, A: jnp.ndarray, params: ModelParams):
+    n_dim, z_dim = params.mu_z.shape
+    l_dim, _, _ = params.mu_w.shape
+
+    # compute expected residuals
+    # use posterior mean of Z, W, and Alpha to calculate residuals
+    W = params.W
+    E_ZZ = params.mu_z.T @ params.mu_z + n_dim * params.var_z
+
+    # perform MLE inference before variational inference
+    # update effect precision via MLE
+    params = _update_tau0_mle(params)
+
+    # update theta via MLE
+    # jax.debug.print("update theta")
+    params = _update_theta(params, A)
+
+    # update locals (W, alpha)
+    init_loop_param = _FactorLoopResults(X, W, E_ZZ, params)
+    _, W, _, params = lax.fori_loop(0, z_dim, _factor_loop, init_loop_param)
+
+    # update factor parameters
+    params = _update_z(X, params)
+
+    # update precision parameters via MLE
+    params = _update_tau(X, params)
 
     # compute elbo
     elbo_res = compute_elbo(X, params)
@@ -472,10 +353,91 @@ def _inner_loop(X: ArrayLike, params: ModelParams):
     return W, elbo_res, params
 
 
+def _init_params(
+    rng_key: random.PRNGKey,
+    X: ArrayLike,
+    A: ArrayLike,
+    z_dim: int,
+    l_dim: int,
+    tau: float,
+    init: _init_type = "pca",
+) -> ModelParams:
+    """Initialize parameters for SuSiE PCA.
+
+    Args:
+        rng_key: Random number generator seed
+        X: Input data. Should be a array-like
+        z_dim: Latent factor dimension (K)
+        l_dim: Number of single-effects comprising each factor ( L)
+        init: How to initialize the variational mean parameters for latent factors.
+            Either "pca" or "random" (default = "pca")
+        tau: initial value of residual precision
+
+    Returns:
+        ModelParams: initialized set of model parameters.
+
+    Raises:
+        ValueError: Invalid initialization scheme.
+    """
+
+    tau_0 = jnp.ones((l_dim, z_dim))
+
+    n_dim, p_dim = X.shape
+    p_dim, m = A.shape
+
+    rng_key, mu_key, var_key, muw_key, varw_key, alpha_key, theta_key = random.split(
+        rng_key, 7
+    )
+
+    # pull type options for init
+    type_options = get_args(_init_type)
+
+    if init == "pca":
+        # run PCA and extract weights and latent
+        svd_result = jnp.linalg.svd(X - jnp.mean(X, axis=0), full_matrices=False)
+        init_mu_z = svd_result[0] @ jnp.diag(svd_result[1])[:, 0:z_dim]
+    elif init == "random":
+        # random initialization
+        init_mu_z = random.normal(mu_key, shape=(n_dim, z_dim))
+    else:
+        raise ValueError(
+            f"Unknown initialization provided '{init}'; Choices: {type_options}"
+        )
+
+    init_var_z = jnp.diag(random.normal(var_key, shape=(z_dim,)) ** 2)
+
+    # each w_kl has a specific variance term
+    init_mu_w = random.normal(muw_key, shape=(l_dim, z_dim, p_dim)) * 1e-3
+    init_var_w = (1 / tau_0) * (random.normal(varw_key, shape=(l_dim, z_dim))) ** 2
+
+    init_alpha = random.dirichlet(
+        alpha_key, alpha=jnp.ones(p_dim), shape=(l_dim, z_dim)
+    )
+    if A is not None:
+        theta = random.normal(theta_key, shape=(m, z_dim))
+        pi = _compute_pi(A, theta)
+    else:
+        theta = None
+        pi = jnp.ones(p_dim) / p_dim
+
+    return ModelParams(
+        init_mu_z,
+        init_var_z,
+        init_mu_w,
+        init_var_w,
+        init_alpha,
+        tau,
+        tau_0,
+        theta=theta,
+        pi=pi,
+    )
+
+
 def susie_pca(
     X: ArrayLike,
     z_dim: int,
     l_dim: int,
+    A: Optional[ArrayLike] = None,
     tau: float = 1.0,
     center: bool = False,
     init: _init_type = "pca",
@@ -490,9 +452,11 @@ def susie_pca(
         X: Input data. Should be a array-like
         z_dim: Latent factor dimension (int; K)
         l_dim: Number of single-effects comprising each factor (int; L)
+        A: Annotation matrix to use in parameterized-prior mode. If not `None`, leading dimension
+            should match the feature dimension of X.
         tau: initial value of residual precision (default = 1)
         center: Whether to center and scale the input data with mean 0
-                and variance 1 (default = False)
+            and variance 1 (default = False)
         init: How to initialize the variational mean parameters for latent factors.
             Either "pca" or "random" (default = "pca")
         seed: Seed for "random" initialization (int)
@@ -507,12 +471,12 @@ def susie_pca(
         (:py:obj:`ELBOResults`) from the last iteration, the percent of variance
         explained (PVE) for each of the `K` factors (:py:obj:`jax.numpy.ndarray`),
         the posterior inclusion probabilities (PIPs) for each of the `K` factors
-        and `P` features (:py:obj:`jax.numpy.ndarray`), and the posterior mean of
-        loading matrix of shape `K x P` (:py:obj:`jax.numpy.ndarray`).
+        and `P` features (:py:obj:`jax.numpy.ndarray`).
 
     Raises:
         ValueError: Invalid `l_dim` or `z_dim` values. Invalid initialization scheme.
-        Data `X` contains `inf` or `nan`.
+        Data `X` contains `inf` or `nan`. If annotation matrix `A` is not `None`, raises
+        if `A` contains `inf`, `nan` or does not match feature dimension with `X`.
     """
 
     # pull type options for init
@@ -554,10 +518,24 @@ def susie_pca(
             "X contains 'inf'. Please check input data for correctness or missingness"
         )
 
-    # option to center the data
-    if center:
-        X -= jnp.mean(X, axis=0)
-        X /= jnp.std(X, axis=0)
+    if A is not None:
+        if len(A.shape) != 2:
+            raise ValueError(
+                f"Dimension of annotation matrix A should be 2: received {len(A.shape)}"
+            )
+        a_p_dim, _ = A.shape
+        if a_p_dim != p_dim:
+            raise ValueError(
+                f"Leading dimension of annotation matrix A should match feature dimension {p_dim}: received {a_p_dim}"
+            )
+        if jnp.any(jnp.isnan(A)):
+            raise ValueError(
+                "A contains 'nan'. Please check input data for correctness or missingness"
+            )
+        if jnp.any(jnp.isinf(A)):
+            raise ValueError(
+                "A contains 'inf'. Please check input data for correctness or missingness"
+            )
 
     # type check for init
     if init not in type_options:
@@ -565,15 +543,22 @@ def susie_pca(
             f"Unknown initialization provided '{init}'; Choices: {type_options}"
         )
 
+    # option to center the data
+    if center:
+        X -= jnp.mean(X, axis=0)
+        X /= jnp.std(X, axis=0)
+
     # initialize PRNGkey and params
     rng_key = random.PRNGKey(seed)
-    params = init_params(rng_key, X, z_dim, l_dim, tau, init)
+    params = _init_params(rng_key, X, A, z_dim, l_dim, tau, init)
 
-    # run inference
+    #  core loop for inference
     elbo = -5e25
     for idx in range(1, max_iter + 1):
-        #  core loop for inference
-        W, elbo_res, params = _inner_loop(X, params)
+        if A is not None:
+            elbo_res, params = _annotation_inner_loop(X, A, params)
+        else:
+            elbo_res, params = _inner_loop(X, params)
 
         if verbose:
             print(f"Iter [{idx}] | {elbo_res}")
@@ -588,23 +573,36 @@ def susie_pca(
 
         elbo = elbo_res.elbo
 
-    # compute PVE
+    # compute PVE and reorder in descending value
     pve = compute_pve(params)
-
-    # reorder the component based on PVE
-    """
     sorted_indices = jnp.argsort(pve)[::-1]
-    sorted_pve = pve[sorted_indices]
-    sorted_W = W[sorted_indices,:]
-    sorted_mu_z = params.mu_z[:,sorted_indices]
-    #sorted_var_z = params.var_z[sorted_indices]
-    sorted_mu_w = params.mu_w[:,sorted_indices,:]
-    sorted_var_w = params.var_w[:,sorted_indices]
-    sorted_alpha = params.alpha[:,sorted_indices,:]
-    sorted_tau_0 = params.tau_0[:,sorted_indices]
-    """
+
+    pve = pve[sorted_indices]
+    sorted_mu_z = params.mu_z[:, sorted_indices]
+    sorted_var_z = params.var_z[sorted_indices, sorted_indices]
+    sorted_mu_w = params.mu_w[:, sorted_indices, :]
+    sorted_var_w = params.var_w[:, sorted_indices]
+    sorted_alpha = params.alpha[:, sorted_indices, :]
+    sorted_tau_0 = params.tau_0[:, sorted_indices]
+    if A is not None:
+        sorted_theta = params.theta[:, sorted_indices]
+        sorted_pi = _compute_pi(A, sorted_theta)
+    else:
+        sorted_pi = params.pi
+
+    params = ModelParams(
+        sorted_mu_z,
+        sorted_var_z,
+        sorted_mu_w,
+        sorted_var_w,
+        sorted_alpha,
+        tau,
+        sorted_tau_0,
+        sorted_theta,
+        sorted_pi,
+    )
 
     # compute PIPs
     pip = compute_pip(params)
 
-    return SuSiEPCAResults(params, elbo_res, pve, pip, W)
+    return SuSiEPCAResults(params, elbo_res, pve, pip)
