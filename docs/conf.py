@@ -132,9 +132,14 @@ python_apigen_default_order = [
 ]
 
 object_description_options = [
-    ("py.*", dict(include_in_toc=False,
-                  include_fields_in_toc=False,
-                  wrap_signatures_with_css=True)),
+    (
+        "py.*",
+        dict(
+            include_in_toc=False,
+            include_fields_in_toc=False,
+            wrap_signatures_with_css=True,
+        ),
+    ),
     ("py.class", dict(include_in_toc=True)),
     ("py.function", dict(include_in_toc=True)),
 ]
@@ -278,15 +283,21 @@ print(f"loading configurations for {project} {version} ...", file=sys.stderr)
 
 # -- Post process ------------------------------------------------------------
 import collections
+
+
 def remove_namedtuple_attrib_docstring(app, what, name, obj, skip, options):
     if type(obj) is collections._tuplegetter:
         return True
     return skip
 
-def autodoc_process_signature(app, what, name, obj, options, signature, return_annotation):
+
+def autodoc_process_signature(
+    app, what, name, obj, options, signature, return_annotation
+):
     signature = modify_type_hints(signature)
     return_annotation = modify_type_hints(return_annotation)
     return signature, return_annotation
+
 
 def modify_type_hints(signature):
     if signature:
@@ -295,5 +306,5 @@ def modify_type_hints(signature):
 
 
 def setup(app):
-    app.connect('autodoc-skip-member', remove_namedtuple_attrib_docstring)
+    app.connect("autodoc-skip-member", remove_namedtuple_attrib_docstring)
     app.connect("autodoc-process-signature", autodoc_process_signature)

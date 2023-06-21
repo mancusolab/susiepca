@@ -59,5 +59,4 @@ def test_get_credset():
     # second single effect in second factor
     assert int(set1["z1"][1][0]) == 3
 
-
     return

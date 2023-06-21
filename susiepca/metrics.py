@@ -1,3 +1,5 @@
+from typing import Optional
+
 import jax.numpy as jnp
 
 # from jax import jit
@@ -22,12 +24,11 @@ def mse(X: jnp.ndarray, Xhat: jnp.ndarray) -> float:
     if X.shape != Xhat.shape:
         raise ValueError("Predicted data shape doesn't match, please check")
 
-    mse = jnp.sum((X - Xhat) ** 2) / jnp.sum(X ** 2)
+    mse = jnp.sum((X - Xhat) ** 2) / jnp.sum(X**2)
     return mse
 
 
-def get_credset(alpha, feature_label: list = None, rho=0.9) -> dict:
-
+def get_credset(alpha, feature_label: Optional[list] = None, rho=0.9) -> dict:
     """Creat a function to compute the rho-level credible set
 
     Args:

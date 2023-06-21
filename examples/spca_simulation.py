@@ -13,7 +13,6 @@ import susiepca
 
 
 def mySparsePCA(X, n_components, seed):
-
     spca = SparsePCA(n_components=n_components, random_state=seed)
     spca_z = spca.fit_transform(X)
     spca_weights = spca.components_

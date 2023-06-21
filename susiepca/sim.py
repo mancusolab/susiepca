@@ -93,7 +93,6 @@ def generate_sim(
     W = jnp.zeros(shape=(z_dim, p_dim))
 
     for k in range(z_dim):
-
         W = W.at[k, (k * l_dim) : ((k + 1) * l_dim)].set(
             effect_size * random.normal(b_key, shape=(l_dim,))
         )

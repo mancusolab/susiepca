@@ -7,6 +7,7 @@ from time import time
 
 import numpy as np
 import procrustes
+
 from jax.config import config
 
 import susiepca as sp
