@@ -368,6 +368,7 @@ def _reorder_factors_by_pve(
         sorted_theta = params.theta[:, sorted_indices]
         sorted_pi = _compute_pi(A, sorted_theta)
     else:
+        sorted_theta = None
         sorted_pi = params.pi
 
     params = ModelParams(
@@ -398,7 +399,7 @@ def _init_params(
 
     Args:
         rng_key: Random number generator seed
-        X: Input data. Should be a array-like
+        X: Input data. Should be an array-like
         z_dim: Latent factor dimension (K)
         l_dim: Number of single-effects comprising each factor ( L)
         init: How to initialize the variational mean parameters for latent factors.
@@ -465,6 +466,69 @@ def _init_params(
     )
 
 
+def _check_args(X: ArrayLike, A: ArrayLike, z_dim: int, l_dim: int, init: _init_type):
+    # pull type options for init
+    type_options = get_args(_init_type)
+
+    if len(X.shape) != 2:
+        raise ValueError(f"Shape of X = {X.shape}; Expected 2-dim matrix")
+
+    # should we check for n < p?
+    n_dim, p_dim = X.shape
+
+    # dim checks
+    if l_dim > p_dim:
+        raise ValueError(
+            f"l_dim should be less than p: received l_dim = {l_dim}, p = {p_dim}"
+        )
+    if l_dim <= 0:
+        raise ValueError(f"l_dim should be positive: received l_dim = {l_dim}")
+    if z_dim > p_dim:
+        raise ValueError(
+            f"z_dim should be less than p: received z_dim = {z_dim}, p = {p_dim}"
+        )
+    if z_dim > n_dim:
+        raise ValueError(
+            f"z_dim should be less than n: received z_dim = {z_dim}, n = {n_dim}"
+        )
+    if z_dim <= 0:
+        raise ValueError(f"z_dim should be positive: received z_dim = {z_dim}")
+    # quality checks
+    if jnp.any(jnp.isnan(X)):
+        raise ValueError(
+            "X contains 'nan'. Please check input data for correctness or missingness"
+        )
+    if jnp.any(jnp.isinf(X)):
+        raise ValueError(
+            "X contains 'inf'. Please check input data for correctness or missingness"
+        )
+    if A is not None:
+        if len(A.shape) != 2:
+            raise ValueError(
+                f"Dimension of annotation matrix A should be 2: received {len(A.shape)}"
+            )
+        a_p_dim, _ = A.shape
+        if a_p_dim != p_dim:
+            raise ValueError(
+                f"Leading dimension of annotation matrix A should match feature dimension {p_dim}: received {a_p_dim}"
+            )
+        if jnp.any(jnp.isnan(A)):
+            raise ValueError(
+                "A contains 'nan'. Please check input data for correctness or missingness"
+            )
+        if jnp.any(jnp.isinf(A)):
+            raise ValueError(
+                "A contains 'inf'. Please check input data for correctness or missingness"
+            )
+    # type check for init
+    if init not in type_options:
+        raise ValueError(
+            f"Unknown initialization provided '{init}'; Choices: {type_options}"
+        )
+
+    return
+
+
 def susie_pca(
     X: ArrayLike,
     z_dim: int,
@@ -481,7 +545,7 @@ def susie_pca(
     """The main inference function for SuSiE PCA.
 
     Args:
-        X: Input data. Should be a array-like
+        X: Input data. Should be an array-like
         z_dim: Latent factor dimension (int; K)
         l_dim: Number of single-effects comprising each factor (int; L)
         A: Annotation matrix to use in parameterized-prior mode. If not `None`, leading dimension
@@ -511,69 +575,11 @@ def susie_pca(
         if `A` contains `inf`, `nan` or does not match feature dimension with `X`.
     """
 
-    # pull type options for init
-    type_options = get_args(_init_type)
-
     # cast to jax array
     X = jnp.asarray(X)
-    if len(X.shape) != 2:
-        raise ValueError(f"Shape of X = {X.shape}; Expected 2-dim matrix")
 
-    # should we check for n < p?
-    n_dim, p_dim = X.shape
-
-    # dim checks
-    if l_dim > p_dim:
-        raise ValueError(
-            f"l_dim should be less than p: received l_dim = {l_dim}, p = {p_dim}"
-        )
-    if l_dim <= 0:
-        raise ValueError(f"l_dim should be positive: received l_dim = {l_dim}")
-    if z_dim > p_dim:
-        raise ValueError(
-            f"z_dim should be less than p: received z_dim = {z_dim}, p = {p_dim}"
-        )
-    if z_dim > n_dim:
-        raise ValueError(
-            f"z_dim should be less than n: received z_dim = {z_dim}, n = {n_dim}"
-        )
-    if z_dim <= 0:
-        raise ValueError(f"z_dim should be positive: received z_dim = {z_dim}")
-
-    # quality checks
-    if jnp.any(jnp.isnan(X)):
-        raise ValueError(
-            "X contains 'nan'. Please check input data for correctness or missingness"
-        )
-    if jnp.any(jnp.isinf(X)):
-        raise ValueError(
-            "X contains 'inf'. Please check input data for correctness or missingness"
-        )
-
-    if A is not None:
-        if len(A.shape) != 2:
-            raise ValueError(
-                f"Dimension of annotation matrix A should be 2: received {len(A.shape)}"
-            )
-        a_p_dim, _ = A.shape
-        if a_p_dim != p_dim:
-            raise ValueError(
-                f"Leading dimension of annotation matrix A should match feature dimension {p_dim}: received {a_p_dim}"
-            )
-        if jnp.any(jnp.isnan(A)):
-            raise ValueError(
-                "A contains 'nan'. Please check input data for correctness or missingness"
-            )
-        if jnp.any(jnp.isinf(A)):
-            raise ValueError(
-                "A contains 'inf'. Please check input data for correctness or missingness"
-            )
-
-    # type check for init
-    if init not in type_options:
-        raise ValueError(
-            f"Unknown initialization provided '{init}'; Choices: {type_options}"
-        )
+    # sanity check arguments
+    _check_args(X, A, z_dim, l_dim, init)
 
     # option to center the data
     if center:

@@ -126,7 +126,7 @@ def compute_pve(params: ModelParams) -> Array:
     """
 
     n_dim, z_dim = params.mu_z.shape
-    W = jnp.sum(params.mu_w * params.alpha, axis=0)
+    W = params.W
 
     z_dim, p_dim = W.shape
 
