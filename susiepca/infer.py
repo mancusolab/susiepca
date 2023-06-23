@@ -104,6 +104,25 @@ def _update_alpha_bf(
     return params
 
 
+# Update posterior of alpha using Bayes factor in SuSiE PCA+Anno
+def _update_alpha_bf_annotation(
+    RtZk: ArrayLike, E_zzk: ArrayLike, params: ModelParams, kdx: int, ldx: int
+) -> ModelParams:
+    Z_s = (RtZk / E_zzk) * jnp.sqrt(E_zzk * params.tau)
+    s2_s = 1 / (E_zzk * params.tau)
+    s20_s = params.tau_0[ldx, kdx]
+
+    log_bf = _log_bf_np(Z_s, s2_s, s20_s)
+    log_alpha = jnp.log(params.pi[:, kdx]) + log_bf
+    alpha_kl = nn.softmax(log_alpha)
+
+    params = params._replace(
+        alpha=params.alpha.at[ldx, kdx].set(alpha_kl),
+    )
+
+    return params
+
+
 # Update Posterior mean and variance of Z
 def _update_z(X: ArrayLike, params: ModelParams) -> ModelParams:
     E_W, E_WW = _compute_w_moment(params)
@@ -290,6 +309,53 @@ def _effect_loop(ldx: int, effect_params: _EffectLoopResults) -> _EffectLoopResu
     return effect_params._replace(Wk=Wk, params=params)
 
 
+# loop function for annotation model
+def _factor_loop_annotation(
+    kdx: int, loop_params: _FactorLoopResults
+) -> _FactorLoopResults:
+    X, W, E_ZZ, params = loop_params
+
+    l_dim, z_dim, p_dim = params.mu_w.shape
+
+    # sufficient stats for inferring downstream w_kl/alpha_kl
+    not_kdx = jnp.where(jnp.arange(z_dim) != kdx, size=z_dim - 1)
+    E_zpzk = E_ZZ[kdx][not_kdx]
+    E_zzk = E_ZZ[kdx, kdx]
+    Wk = W[kdx, :]
+    Wnk = W[not_kdx]
+    RtZk = params.mu_z[:, kdx] @ X - Wnk.T @ E_zpzk
+
+    # update over each of L effects
+    init_loop_param = _EffectLoopResults(E_zzk, RtZk, Wk, kdx, params)
+    _, _, Wk, _, params = lax.fori_loop(
+        0,
+        l_dim,
+        _effect_loop_annotation,
+        init_loop_param,
+    )
+
+    return loop_params._replace(W=W.at[kdx].set(Wk), params=params)
+
+
+def _effect_loop_annotation(
+    ldx: int, effect_params: _EffectLoopResults
+) -> _EffectLoopResults:
+    E_zzk, RtZk, Wk, kdx, params = effect_params
+
+    # remove current kl'th effect and update its expected residual
+    Wkl = Wk - (params.mu_w[ldx, kdx] * params.alpha[ldx, kdx])
+    E_RtZk = RtZk - E_zzk * Wkl
+
+    # update conditional w_kl and alpha_kl based on current residual
+    params = _update_w(E_RtZk, E_zzk, params, kdx, ldx)
+    params = _update_alpha_bf_annotation(E_RtZk, E_zzk, params, kdx, ldx)
+
+    # update marginal w_kl
+    Wk = Wkl + (params.mu_w[ldx, kdx] * params.alpha[ldx, kdx])
+
+    return effect_params._replace(Wk=Wk, params=params)
+
+
 @jit
 def _inner_loop(X: ArrayLike, params: ModelParams):
     n_dim, z_dim = params.mu_z.shape
@@ -334,12 +400,11 @@ def _annotation_inner_loop(X: jnp.ndarray, A: jnp.ndarray, params: ModelParams):
     params = _update_tau0_mle(params)
 
     # update theta via MLE
-    # jax.debug.print("update theta")
     params = _update_theta(params, A)
 
     # update locals (W, alpha)
     init_loop_param = _FactorLoopResults(X, W, E_ZZ, params)
-    _, W, _, params = lax.fori_loop(0, z_dim, _factor_loop, init_loop_param)
+    _, W, _, params = lax.fori_loop(0, z_dim, _factor_loop_annotation, init_loop_param)
 
     # update factor parameters
     params = _update_z(X, params)
@@ -350,7 +415,7 @@ def _annotation_inner_loop(X: jnp.ndarray, A: jnp.ndarray, params: ModelParams):
     # compute elbo
     elbo_res = compute_elbo(X, params)
 
-    return W, elbo_res, params
+    return elbo_res, params
 
 
 def _reorder_factors_by_pve(
@@ -389,10 +454,10 @@ def _reorder_factors_by_pve(
 def _init_params(
     rng_key: random.PRNGKey,
     X: ArrayLike,
-    A: ArrayLike,
     z_dim: int,
     l_dim: int,
-    tau: float,
+    A: Optional[ArrayLike] = None,
+    tau: float = 1.0,
     init: _init_type = "pca",
 ) -> ModelParams:
     """Initialize parameters for SuSiE PCA.
@@ -416,7 +481,6 @@ def _init_params(
     tau_0 = jnp.ones((l_dim, z_dim))
 
     n_dim, p_dim = X.shape
-    p_dim, m = A.shape
 
     rng_key, mu_key, var_key, muw_key, varw_key, alpha_key, theta_key = random.split(
         rng_key, 7
@@ -447,6 +511,7 @@ def _init_params(
         alpha_key, alpha=jnp.ones(p_dim), shape=(l_dim, z_dim)
     )
     if A is not None:
+        p_dim, m = A.shape
         theta = random.normal(theta_key, shape=(m, z_dim))
         pi = _compute_pi(A, theta)
     else:
@@ -466,7 +531,9 @@ def _init_params(
     )
 
 
-def _check_args(X: ArrayLike, A: ArrayLike, z_dim: int, l_dim: int, init: _init_type):
+def _check_args(
+    X: ArrayLike, A: Optional[ArrayLike], z_dim: int, l_dim: int, init: _init_type
+):
     # pull type options for init
     type_options = get_args(_init_type)
 
@@ -588,7 +655,7 @@ def susie_pca(
 
     # initialize PRNGkey and params
     rng_key = random.PRNGKey(seed)
-    params = _init_params(rng_key, X, A, z_dim, l_dim, tau, init)
+    params = _init_params(rng_key, X, z_dim, l_dim, A, tau, init)
 
     #  core loop for inference
     elbo = -5e25
