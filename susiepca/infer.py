@@ -28,11 +28,11 @@ def logdet(A):
 
 
 def _compute_pi(A: ArrayLike, theta: ArrayLike) -> Array:
-    return nn.softmax(A @ theta, axis=0)
+    return nn.softmax(A @ theta, axis=0).T
 
 
 def _kl_gamma(alpha: ArrayLike, pi: ArrayLike) -> float:
-    return jnp.sum(spec.xlogy(alpha, alpha) - spec.xlogy(alpha, pi.T))
+    return jnp.sum(spec.xlogy(alpha, alpha) - spec.xlogy(alpha, pi))
 
 
 def _compute_w_moment(params: ModelParams) -> Tuple[Array, Array]:
@@ -113,7 +113,7 @@ def _update_alpha_bf_annotation(
     s20_s = params.tau_0[ldx, kdx]
 
     log_bf = _log_bf_np(Z_s, s2_s, s20_s)
-    log_alpha = jnp.log(params.pi[:, kdx]) + log_bf
+    log_alpha = jnp.log(params.pi[kdx, :]) + log_bf
     alpha_kl = nn.softmax(log_alpha)
 
     params = params._replace(
@@ -161,10 +161,12 @@ def _update_theta(
     A: ArrayLike,
     lr: float = 1e-2,
     tol: float = 1e-3,
-    max_iter: int = 100,
+    max_iter: int = 60,
 ) -> ModelParams:
     optimizer = optax.adam(lr)
-    init_opt_state = optimizer.init(params.theta)
+    theta = params.theta
+    old_theta = jnp.zeros_like(params.theta)
+    opt_state = optimizer.init(params.theta)
 
     def _loss(theta_i: ArrayLike) -> float:
         pi = _compute_pi(A, theta_i)
@@ -182,14 +184,15 @@ def _update_theta(
     def cond_fn(inputs):
         old_theta, theta, idx, _ = inputs
         tol_check = jnp.linalg.norm(theta - old_theta) > tol
-        iter_check = idx > max_iter
+        iter_check = idx < max_iter
         return jnp.logical_and(tol_check, iter_check)
+        # return tol_check
 
     # use jax.lax.while_loop until the change in parameters is less than a given tolerance
     old_theta, theta, idx_count, opt_state = lax.while_loop(
         cond_fn,
         body_fun,
-        (jnp.zeros_like(params.theta), params.theta, 0, init_opt_state),
+        (old_theta, theta, 0, opt_state),
     )
 
     return params._replace(theta=theta, pi=_compute_pi(A, theta))
