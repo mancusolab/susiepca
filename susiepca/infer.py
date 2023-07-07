@@ -3,6 +3,7 @@ from typing import Literal, NamedTuple, Optional, Tuple, get_args
 import optax
 
 from jax import Array, grad, jit, lax, nn, numpy as jnp, random
+from jax.experimental import sparse
 from jax.scipy import special as spec
 from jax.typing import ArrayLike
 
@@ -388,6 +389,10 @@ def _inner_loop(X: ArrayLike, params: ModelParams):
     return elbo_res, params
 
 
+# sparsified innner loop
+_inner_loop_sp = jit(sparse.sparsify(_inner_loop))
+
+
 @jit
 def _annotation_inner_loop(X: jnp.ndarray, A: jnp.ndarray, params: ModelParams):
     n_dim, z_dim = params.mu_z.shape
@@ -419,6 +424,10 @@ def _annotation_inner_loop(X: jnp.ndarray, A: jnp.ndarray, params: ModelParams):
     elbo_res = compute_elbo(X, params)
 
     return elbo_res, params
+
+
+# sparsified innner loop
+_annotation_inner_loop_sp = jit(sparse.sparsify(_annotation_inner_loop))
 
 
 def _reorder_factors_by_pve(
@@ -591,12 +600,17 @@ def _check_args(
                 "A contains 'inf'. Please check input data for correctness or missingness"
             )
     # type check for init
+
     if init not in type_options:
         raise ValueError(
             f"Unknown initialization provided '{init}'; Choices: {type_options}"
         )
 
     return
+
+
+# sparsified check args
+_check_args_sp = sparse.sparsify(_check_args)
 
 
 def susie_pca(
@@ -611,6 +625,7 @@ def susie_pca(
     max_iter: int = 200,
     tol: float = 1e-3,
     verbose: bool = True,
+    sparse: bool = False,
 ) -> SuSiEPCAResults:
     """The main inference function for SuSiE PCA.
 
@@ -650,6 +665,7 @@ def susie_pca(
 
     # sanity check arguments
     _check_args(X, A, z_dim, l_dim, init)
+    # _check_args_sp(X, A, z_dim, l_dim, init)
 
     # option to center the data
     if center:
@@ -664,9 +680,15 @@ def susie_pca(
     elbo = -5e25
     for idx in range(1, max_iter + 1):
         if A is not None:
-            elbo_res, params = _annotation_inner_loop(X, A, params)
+            if sparse:
+                elbo_res, params = _annotation_inner_loop_sp(X, A, params)
+            else:
+                elbo_res, params = _annotation_inner_loop(X, A, params)
         else:
-            elbo_res, params = _inner_loop(X, params)
+            if sparse:
+                elbo_res, params = _inner_loop_sp(X, params)
+            else:
+                elbo_res, params = _inner_loop(X, params)
 
         if verbose:
             print(f"Iter [{idx}] | {elbo_res}")
