@@ -1,0 +1,17 @@
+line-length = 120
+select = ["E", "F", "I001"]
+ignore = ["E402", "E721", "E731", "E741", "F722", "F811"]
+ignore-init-module-imports = true
+
+[isort]
+combine-as-imports = true
+lines-after-imports = 2
+lines-between-types = 1
+known-local-folder = ["src"]
+known-first-party = ["susiepca"]
+section-order = ["future", "standard-library", "third-party", "jax-ecosystem", "first-party", "local-folder"]
+extra-standard-library = ["typing_extensions"]
+order-by-type = false
+
+[isort.sections]
+jax-ecosystem = ["equinox", "jax", "jaxtyping", "lineax", "optax"]

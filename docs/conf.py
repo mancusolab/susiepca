@@ -8,8 +8,8 @@
 # serve to show the default.
 
 import os
-import shutil
 import sys
+
 
 # -- Path setup --------------------------------------------------------------
 # If extensions (or modules to document with autodoc) are in another directory,

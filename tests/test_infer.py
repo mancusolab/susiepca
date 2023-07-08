@@ -1,15 +1,12 @@
 import pytest
 
+import jax.experimental.sparse as sparse
 import jax.numpy as jnp
+import jax.random as rdm
 
 import susiepca as sp
 import susiepca.common
 
-# set n_dim = 3, p_dim = 5, l_dim = 2, z_dim(k) = 2
-n_dim = 3
-p_dim = 5
-l_dim = 2
-z_dim = 2
 
 params = susiepca.common.ModelParams(
     mu_z=jnp.array(
@@ -81,6 +78,9 @@ def test_compute_pip():
 
 
 def test_susie_pca():
+    l_dim = 2
+    z_dim = 2
+
     X = jnp.array([[1, 2, 3, 4, 5], [2, 8, 1, 2, 1], [0, 1, 3, 4, 1]])
     X_wrongshape = jnp.array(
         [[[1, 2, 3, 4, 5], [2, 8, 1, 2, 1]], [[0, 1, 3, 4, 1], [1, 5, 8, 3, 1]]]
@@ -105,3 +105,18 @@ def test_susie_pca():
         sp.infer.susie_pca(X_inf, z_dim, l_dim=l_dim)
         # test wrong init method
         sp.infer.susie_pca(X, z_dim, l_dim, init="not sure")
+
+
+def test_susie_pca_sparse():
+    n_dim = 50
+    p_dim = 200
+    l_dim = 5
+    z_dim = 5
+
+    key = rdm.PRNGKey(0)
+    key, i_key = rdm.split(key)
+
+    X = sparse.random_bcoo(i_key, shape=(n_dim, p_dim))
+
+    res = sp.infer.susie_pca(X, z_dim, l_dim)
+    assert res is not None

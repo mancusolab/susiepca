@@ -1,5 +1,8 @@
-from typing import Literal, NamedTuple, Optional, Tuple, get_args
+from typing import get_args, Literal, NamedTuple, Optional, Tuple
 
+from plum import dispatch
+
+import equinox as eqx
 import optax
 
 from jax import Array, grad, jit, lax, nn, numpy as jnp, random
@@ -7,23 +10,51 @@ from jax.experimental import sparse
 from jax.scipy import special as spec
 from jax.typing import ArrayLike
 
+
 __all__ = [
     "compute_elbo",
     "susie_pca",
 ]
 
 from susiepca.common import (
+    compute_pip,
+    compute_pve,
     ELBOResults,
     ModelParams,
     SuSiEPCAResults,
-    compute_pip,
-    compute_pve,
 )
+
+from .sparse import SparseMatrix
+
 
 _init_type = Literal["pca", "random"]
 
 
-def logdet(A):
+def _is_nan(X):
+    return sparse.sparsify(jnp.isnan)(X).todense()
+
+
+def _is_inf(X):
+    return sparse.sparsify(jnp.isinf)(X).todense()
+
+
+def _svd(rng_key: random.PRNGKey, A: ArrayLike, k: int):
+    n, m = A.shape
+
+    # initial search directions
+    initial = random.normal(rng_key, shape=(n, k))
+
+    # create operator
+    def AAT(x):
+        return A @ (A.T @ x)
+
+    eigvals, eigvec, n_iter = sparse.linalg.lobpcg_standard(AAT, initial, m=100)
+    U = eigvec * jnp.sqrt(eigvals)
+
+    return U
+
+
+def _logdet(A: ArrayLike) -> float:
     sign, ldet = jnp.linalg.slogdet(A)
     return ldet
 
@@ -130,7 +161,7 @@ def _update_z(X: ArrayLike, params: ModelParams) -> ModelParams:
     z_dim, p_dim = E_W.shape
 
     update_var_z = jnp.linalg.inv(params.tau * E_WW + jnp.identity(z_dim))
-    update_mu_z = params.tau * X @ E_W.T @ update_var_z
+    update_mu_z = params.tau * (X @ E_W.T @ update_var_z)
 
     return params._replace(mu_z=update_mu_z, var_z=update_var_z)
 
@@ -147,11 +178,7 @@ def _update_tau(X: ArrayLike, params: ModelParams) -> ModelParams:
     E_W, E_WW = _compute_w_moment(params)
 
     # expectation of log likelihood
-    E_ss = (
-        jnp.sum(X**2)
-        - 2 * jnp.trace(E_W @ X.T @ params.mu_z)
-        + jnp.trace(E_ZZ @ E_WW)
-    )
+    E_ss = params.ssq - 2 * jnp.trace(E_W @ X.T @ params.mu_z) + jnp.trace(E_ZZ @ E_WW)
     u_tau = (n_dim * p_dim) / E_ss
 
     return params._replace(tau=u_tau)
@@ -224,15 +251,16 @@ def compute_elbo(X: ArrayLike, params: ModelParams) -> ELBOResults:
     # calculation tip: tr(A @ A.T) = tr(A.T @ A) = sum(A ** 2)
     # (X.T @ E[Z] @ E[W]) is p x p (big!); compute (E[W] @ X.T @ E[Z]) (k x k)
     E_ll = (-0.5 * params.tau) * (
-        jnp.sum(X**2)  # tr(X.T @ X)
-        - 2 * jnp.einsum("kp,np,nk->", E_W, X, params.mu_z)  # tr(E[W] @ X.T @ E[Z])
+        params.ssq
+        # - 2 * jnp.einsum("kp,np,nk->", E_W, X, params.mu_z)  # tr(E[W] @ X.T @ E[Z])
+        - 2 * jnp.sum((E_W @ X.T) @ params.mu_z)
         + jnp.einsum("ij,ji->", E_ZZ, E_WW)  # tr(E[Z.T @ Z] @ E[W @ W.T])
     ) + 0.5 * n_dim * p_dim * jnp.log(
         params.tau
     )  # -0.5 * n * p * log(1 / tau) = 0.5 * n * p * log(tau)
 
     # neg-KL for Z
-    negKL_z = 0.5 * (-jnp.trace(E_ZZ) + n_dim * z_dim + n_dim * logdet(params.var_z))
+    negKL_z = 0.5 * (-jnp.trace(E_ZZ) + n_dim * z_dim + n_dim * _logdet(params.var_z))
 
     # neg-KL for w
     # awkward indexing to get broadcast working
@@ -271,6 +299,7 @@ class _EffectLoopResults(NamedTuple):
     params: ModelParams
 
 
+@eqx.filter_jit
 def _factor_loop(kdx: int, loop_params: _FactorLoopResults) -> _FactorLoopResults:
     X, W, E_ZZ, params = loop_params
 
@@ -360,7 +389,6 @@ def _effect_loop_annotation(
     return effect_params._replace(Wk=Wk, params=params)
 
 
-@jit
 def _inner_loop(X: ArrayLike, params: ModelParams):
     n_dim, z_dim = params.mu_z.shape
     l_dim, _, _ = params.mu_w.shape
@@ -393,7 +421,6 @@ def _inner_loop(X: ArrayLike, params: ModelParams):
 _inner_loop_sp = jit(sparse.sparsify(_inner_loop))
 
 
-@jit
 def _annotation_inner_loop(X: jnp.ndarray, A: jnp.ndarray, params: ModelParams):
     n_dim, z_dim = params.mu_z.shape
     l_dim, _, _ = params.mu_w.shape
@@ -494,17 +521,23 @@ def _init_params(
 
     n_dim, p_dim = X.shape
 
-    rng_key, mu_key, var_key, muw_key, varw_key, alpha_key, theta_key = random.split(
-        rng_key, 7
-    )
+    (
+        rng_key,
+        svd_key,
+        mu_key,
+        var_key,
+        muw_key,
+        varw_key,
+        alpha_key,
+        theta_key,
+    ) = random.split(rng_key, 8)
 
     # pull type options for init
     type_options = get_args(_init_type)
 
     if init == "pca":
         # run PCA and extract weights and latent
-        svd_result = jnp.linalg.svd(X - jnp.mean(X, axis=0), full_matrices=False)
-        init_mu_z = svd_result[0] @ jnp.diag(svd_result[1])[:, 0:z_dim]
+        init_mu_z = _svd(svd_key, X, z_dim)
     elif init == "random":
         # random initialization
         init_mu_z = random.normal(mu_key, shape=(n_dim, z_dim))
@@ -530,6 +563,15 @@ def _init_params(
         theta = None
         pi = jnp.ones(p_dim) / p_dim
 
+    rng_key, ssq_key = random.split(rng_key)
+    omega = random.normal(ssq_key, shape=(n_dim, z_dim))
+
+    def _trace_func(trace, omega_i):
+        tmp = X.T @ omega_i
+        return trace + (tmp @ tmp), None
+
+    ssq, _ = lax.scan(_trace_func, 0.0, omega.T)
+
     return ModelParams(
         init_mu_z,
         init_var_z,
@@ -540,6 +582,7 @@ def _init_params(
         tau_0,
         theta=theta,
         pi=pi,
+        ssq=ssq,
     )
 
 
@@ -573,11 +616,11 @@ def _check_args(
     if z_dim <= 0:
         raise ValueError(f"z_dim should be positive: received z_dim = {z_dim}")
     # quality checks
-    if jnp.any(jnp.isnan(X)):
+    if jnp.any(_is_nan(X)):
         raise ValueError(
             "X contains 'nan'. Please check input data for correctness or missingness"
         )
-    if jnp.any(jnp.isinf(X)):
+    if jnp.any(_is_inf(X)):
         raise ValueError(
             "X contains 'inf'. Please check input data for correctness or missingness"
         )
@@ -591,11 +634,11 @@ def _check_args(
             raise ValueError(
                 f"Leading dimension of annotation matrix A should match feature dimension {p_dim}: received {a_p_dim}"
             )
-        if jnp.any(jnp.isnan(A)):
+        if jnp.any(_is_nan(A)):
             raise ValueError(
                 "A contains 'nan'. Please check input data for correctness or missingness"
             )
-        if jnp.any(jnp.isinf(A)):
+        if jnp.any(_is_inf(A)):
             raise ValueError(
                 "A contains 'inf'. Please check input data for correctness or missingness"
             )
@@ -609,23 +652,19 @@ def _check_args(
     return
 
 
-# sparsified check args
-_check_args_sp = sparse.sparsify(_check_args)
-
-
+@dispatch
 def susie_pca(
     X: ArrayLike,
     z_dim: int,
     l_dim: int,
     A: Optional[ArrayLike] = None,
     tau: float = 1.0,
-    center: bool = False,
+    standardize: bool = False,
     init: _init_type = "pca",
     seed: int = 0,
     max_iter: int = 200,
     tol: float = 1e-3,
     verbose: bool = True,
-    sparse: bool = False,
 ) -> SuSiEPCAResults:
     """The main inference function for SuSiE PCA.
 
@@ -636,7 +675,7 @@ def susie_pca(
         A: Annotation matrix to use in parameterized-prior mode. If not `None`, leading dimension
             should match the feature dimension of X.
         tau: initial value of residual precision (default = 1)
-        center: Whether to center and scale the input data with mean 0
+        standardize: Whether to center and scale the input data with mean 0
             and variance 1 (default = False)
         init: How to initialize the variational mean parameters for latent factors.
             Either "pca" or "random" (default = "pca")
@@ -668,27 +707,115 @@ def susie_pca(
     # _check_args_sp(X, A, z_dim, l_dim, init)
 
     # option to center the data
-    if center:
-        X -= jnp.mean(X, axis=0)
+    X -= jnp.mean(X, axis=0)
+    if standardize:
         X /= jnp.std(X, axis=0)
 
     # initialize PRNGkey and params
     rng_key = random.PRNGKey(seed)
     params = _init_params(rng_key, X, z_dim, l_dim, A, tau, init)
 
+    _inner_loop_jit = jit(_inner_loop)
+    _annotation_inner_loop_jit = jit(_annotation_inner_loop)
+
     #  core loop for inference
     elbo = -5e25
     for idx in range(1, max_iter + 1):
         if A is not None:
-            if sparse:
-                elbo_res, params = _annotation_inner_loop_sp(X, A, params)
-            else:
-                elbo_res, params = _annotation_inner_loop(X, A, params)
+            elbo_res, params = _annotation_inner_loop_jit(X, A, params)
         else:
-            if sparse:
-                elbo_res, params = _inner_loop_sp(X, params)
-            else:
-                elbo_res, params = _inner_loop(X, params)
+            elbo_res, params = _inner_loop_jit(X, params)
+
+        if verbose:
+            print(f"Iter [{idx}] | {elbo_res}")
+
+        diff = elbo_res.elbo - elbo
+        if diff < 0 and verbose:
+            print(f"Alert! Diff between elbo[{idx - 1}] and elbo[{idx}] = {diff}")
+        if jnp.fabs(diff) < tol:
+            if verbose:
+                print(f"Elbo diff tolerance reached at iteration {idx}")
+            break
+
+        elbo = elbo_res.elbo
+
+    # compute PVE and reorder in descending value
+    pve = compute_pve(params)
+    params, pve = _reorder_factors_by_pve(A, params, pve)
+
+    # compute PIPs
+    pip = compute_pip(params)
+
+    return SuSiEPCAResults(params, elbo_res, pve, pip)
+
+
+@dispatch
+def susie_pca(
+    X: sparse.JAXSparse,
+    z_dim: int,
+    l_dim: int,
+    A: Optional[ArrayLike] = None,
+    tau: float = 1.0,
+    standardize: bool = False,
+    init: _init_type = "pca",
+    seed: int = 0,
+    max_iter: int = 200,
+    tol: float = 1e-3,
+    verbose: bool = True,
+) -> SuSiEPCAResults:
+    """The main inference function for SuSiE PCA.
+
+    Args:
+        X: Input data. Should be an array-like
+        z_dim: Latent factor dimension (int; K)
+        l_dim: Number of single-effects comprising each factor (int; L)
+        A: Annotation matrix to use in parameterized-prior mode. If not `None`, leading dimension
+            should match the feature dimension of X.
+        tau: initial value of residual precision (default = 1)
+        standardize: Whether to center and scale the input data with mean 0
+            and variance 1 (default = False)
+        init: How to initialize the variational mean parameters for latent factors.
+            Either "pca" or "random" (default = "pca")
+        seed: Seed for "random" initialization (int)
+        max_iter: Maximum number of iterations for inference (int)
+        tol: Numerical tolerance for ELBO convergence (float)
+        verbose: Flag to indicate displaying log information (ELBO value) in each
+            iteration
+
+    Returns:
+        :py:obj:`SuSiEPCAResults`: tuple that has member variables for learned
+        parameters (:py:obj:`ModelParams`), evidence lower bound (ELBO) results
+        (:py:obj:`ELBOResults`) from the last iteration, the percent of variance
+        explained (PVE) for each of the `K` factors (:py:obj:`jax.numpy.ndarray`),
+        the posterior inclusion probabilities (PIPs) for each of the `K` factors
+        and `P` features (:py:obj:`jax.numpy.ndarray`).
+
+    Raises:
+        ValueError: Invalid `l_dim` or `z_dim` values. Invalid initialization scheme.
+        Data `X` contains `inf` or `nan`. If annotation matrix `A` is not `None`, raises
+        if `A` contains `inf`, `nan` or does not match feature dimension with `X`.
+    """
+
+    # sanity check arguments
+    # _check_args(X, A, z_dim, l_dim, init)
+
+    # centerand possibly scale the data
+    X = SparseMatrix(X, scale=standardize)
+
+    # initialize PRNGkey and params
+    rng_key = random.PRNGKey(seed)
+    params = _init_params(rng_key, X, z_dim, l_dim, A, tau, init)
+
+    _inner_loop_jit = eqx.filter_jit(_inner_loop)
+    _annotation_inner_loop_jit = eqx.filter_jit(_annotation_inner_loop)
+
+    #  core loop for inference
+    elbo = -5e25
+    for idx in range(1, max_iter + 1):
+        if A is not None:
+            elbo_res, params = _annotation_inner_loop_jit(X, A, params)
+        else:
+            elbo_res, params = _inner_loop_jit(X, params)
 
         if verbose:
             print(f"Iter [{idx}] | {elbo_res}")

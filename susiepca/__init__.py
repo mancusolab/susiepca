@@ -1,5 +1,6 @@
 from importlib.metadata import PackageNotFoundError, version  # pragma: no cover
 
+
 # flat api; unfortunate but can work with autodoc
 """
 from infer import *
@@ -10,6 +11,7 @@ from utils import *
 from io import *
 """
 from susiepca import infer, io, metrics, sim, utils
+
 
 __all__ = ["common", "infer", "metrics", "sim", "utils", "io"]
 

@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import argparse as ap
 import sys
+
 from csv import writer
 from time import time
 

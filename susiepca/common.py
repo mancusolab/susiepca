@@ -1,8 +1,10 @@
 from typing import NamedTuple, Union
 
 import jax.numpy as jnp
+
 from jax import Array
 from jax.typing import ArrayLike
+
 
 FloatOrArray = Union[float, ArrayLike]
 
@@ -70,6 +72,9 @@ class ModelParams(NamedTuple):
     # prior probability for gamma
     theta: Array
     pi: Array
+
+    # sum of squares for data
+    ssq: FloatOrArray = 0.0
 
     @property
     def W(self) -> Array:

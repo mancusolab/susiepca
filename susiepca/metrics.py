@@ -2,6 +2,7 @@ from typing import Optional
 
 import jax.numpy as jnp
 
+
 # from jax import jit
 
 __all__ = [

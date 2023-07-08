@@ -1,7 +1,9 @@
 from typing import NamedTuple
 
 import jax.numpy as jnp
+
 from jax import random
+
 
 __all__ = [
     "SimulatedData",

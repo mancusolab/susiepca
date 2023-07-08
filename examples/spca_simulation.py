@@ -2,11 +2,13 @@
 # -*- coding: utf-8 -*-
 import argparse as ap
 import sys
+
 from csv import writer
 from time import time
 
 import numpy as np
 import procrustes
+
 from sklearn.decomposition import SparsePCA
 
 import susiepca

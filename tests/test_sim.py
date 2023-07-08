@@ -2,6 +2,7 @@ import pytest
 
 import susiepca as sp
 
+
 n_dim = 20
 p_dim = 100
 l_dim = 10
