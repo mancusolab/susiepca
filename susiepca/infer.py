@@ -5,10 +5,19 @@ from plum import dispatch
 import equinox as eqx
 import optax
 
-from jax import Array, grad, jit, lax, nn, numpy as jnp, random
+from jax import Array, grad, lax, nn, numpy as jnp, random
 from jax.experimental import sparse
 from jax.scipy import special as spec
 from jax.typing import ArrayLike
+
+from .common import (
+    compute_pip,
+    compute_pve,
+    ELBOResults,
+    ModelParams,
+    SuSiEPCAResults,
+)
+from .sparse import SparseMatrix
 
 
 __all__ = [
@@ -16,29 +25,20 @@ __all__ = [
     "susie_pca",
 ]
 
-from susiepca.common import (
-    compute_pip,
-    compute_pve,
-    ELBOResults,
-    ModelParams,
-    SuSiEPCAResults,
-)
-
-from .sparse import SparseMatrix
-
-
 _init_type = Literal["pca", "random"]
 
 
-def _is_nan(X):
-    return sparse.sparsify(jnp.isnan)(X).todense()
+@dispatch
+def _is_valid(X: ArrayLike):
+    return jnp.all(jnp.isfinite(X))
 
 
-def _is_inf(X):
-    return sparse.sparsify(jnp.isinf)(X).todense()
+@dispatch
+def _is_valid(X: sparse.JAXSparse):
+    return jnp.all(jnp.isfinite(X.data))
 
 
-def _svd(rng_key: random.PRNGKey, A: ArrayLike, k: int):
+def _svd(rng_key: random.PRNGKey, A: ArrayLike | SparseMatrix, k: int) -> Array:
     n, m = A.shape
 
     # initial search directions
@@ -285,7 +285,7 @@ def compute_elbo(X: ArrayLike, params: ModelParams) -> ELBOResults:
 
 
 class _FactorLoopResults(NamedTuple):
-    X: Array
+    X: Array | SparseMatrix
     W: Array
     EZZ: Array
     params: ModelParams
@@ -299,7 +299,6 @@ class _EffectLoopResults(NamedTuple):
     params: ModelParams
 
 
-@eqx.filter_jit
 def _factor_loop(kdx: int, loop_params: _FactorLoopResults) -> _FactorLoopResults:
     X, W, E_ZZ, params = loop_params
 
@@ -389,6 +388,7 @@ def _effect_loop_annotation(
     return effect_params._replace(Wk=Wk, params=params)
 
 
+@eqx.filter_jit
 def _inner_loop(X: ArrayLike, params: ModelParams):
     n_dim, z_dim = params.mu_z.shape
     l_dim, _, _ = params.mu_w.shape
@@ -417,10 +417,7 @@ def _inner_loop(X: ArrayLike, params: ModelParams):
     return elbo_res, params
 
 
-# sparsified innner loop
-_inner_loop_sp = jit(sparse.sparsify(_inner_loop))
-
-
+@eqx.filter_jit
 def _annotation_inner_loop(X: jnp.ndarray, A: jnp.ndarray, params: ModelParams):
     n_dim, z_dim = params.mu_z.shape
     l_dim, _, _ = params.mu_w.shape
@@ -451,10 +448,6 @@ def _annotation_inner_loop(X: jnp.ndarray, A: jnp.ndarray, params: ModelParams):
     elbo_res = compute_elbo(X, params)
 
     return elbo_res, params
-
-
-# sparsified innner loop
-_annotation_inner_loop_sp = jit(sparse.sparsify(_annotation_inner_loop))
 
 
 def _reorder_factors_by_pve(
@@ -492,7 +485,7 @@ def _reorder_factors_by_pve(
 
 def _init_params(
     rng_key: random.PRNGKey,
-    X: ArrayLike,
+    X: ArrayLike | SparseMatrix,
     z_dim: int,
     l_dim: int,
     A: Optional[ArrayLike] = None,
@@ -616,14 +609,11 @@ def _check_args(
     if z_dim <= 0:
         raise ValueError(f"z_dim should be positive: received z_dim = {z_dim}")
     # quality checks
-    if jnp.any(_is_nan(X)):
+    if not _is_valid(X):
         raise ValueError(
-            "X contains 'nan'. Please check input data for correctness or missingness"
+            "X contains 'nan/inf'. Please check input data for correctness or missingness"
         )
-    if jnp.any(_is_inf(X)):
-        raise ValueError(
-            "X contains 'inf'. Please check input data for correctness or missingness"
-        )
+
     if A is not None:
         if len(A.shape) != 2:
             raise ValueError(
@@ -634,13 +624,9 @@ def _check_args(
             raise ValueError(
                 f"Leading dimension of annotation matrix A should match feature dimension {p_dim}: received {a_p_dim}"
             )
-        if jnp.any(_is_nan(A)):
+        if not _is_valid(A):
             raise ValueError(
-                "A contains 'nan'. Please check input data for correctness or missingness"
-            )
-        if jnp.any(_is_inf(A)):
-            raise ValueError(
-                "A contains 'inf'. Please check input data for correctness or missingness"
+                "A contains 'nan/inf'. Please check input data for correctness or missingness"
             )
     # type check for init
 
@@ -652,9 +638,8 @@ def _check_args(
     return
 
 
-@dispatch
 def susie_pca(
-    X: ArrayLike,
+    X: ArrayLike | sparse.JAXSparse,
     z_dim: int,
     l_dim: int,
     A: Optional[ArrayLike] = None,
@@ -698,124 +683,31 @@ def susie_pca(
         Data `X` contains `inf` or `nan`. If annotation matrix `A` is not `None`, raises
         if `A` contains `inf`, `nan` or does not match feature dimension with `X`.
     """
-
-    # cast to jax array
-    X = jnp.asarray(X)
 
     # sanity check arguments
     _check_args(X, A, z_dim, l_dim, init)
-    # _check_args_sp(X, A, z_dim, l_dim, init)
 
-    # option to center the data
-    X -= jnp.mean(X, axis=0)
-    if standardize:
-        X /= jnp.std(X, axis=0)
-
-    # initialize PRNGkey and params
-    rng_key = random.PRNGKey(seed)
-    params = _init_params(rng_key, X, z_dim, l_dim, A, tau, init)
-
-    _inner_loop_jit = jit(_inner_loop)
-    _annotation_inner_loop_jit = jit(_annotation_inner_loop)
-
-    #  core loop for inference
-    elbo = -5e25
-    for idx in range(1, max_iter + 1):
-        if A is not None:
-            elbo_res, params = _annotation_inner_loop_jit(X, A, params)
-        else:
-            elbo_res, params = _inner_loop_jit(X, params)
-
-        if verbose:
-            print(f"Iter [{idx}] | {elbo_res}")
-
-        diff = elbo_res.elbo - elbo
-        if diff < 0 and verbose:
-            print(f"Alert! Diff between elbo[{idx - 1}] and elbo[{idx}] = {diff}")
-        if jnp.fabs(diff) < tol:
-            if verbose:
-                print(f"Elbo diff tolerance reached at iteration {idx}")
-            break
-
-        elbo = elbo_res.elbo
-
-    # compute PVE and reorder in descending value
-    pve = compute_pve(params)
-    params, pve = _reorder_factors_by_pve(A, params, pve)
-
-    # compute PIPs
-    pip = compute_pip(params)
-
-    return SuSiEPCAResults(params, elbo_res, pve, pip)
-
-
-@dispatch
-def susie_pca(
-    X: sparse.JAXSparse,
-    z_dim: int,
-    l_dim: int,
-    A: Optional[ArrayLike] = None,
-    tau: float = 1.0,
-    standardize: bool = False,
-    init: _init_type = "pca",
-    seed: int = 0,
-    max_iter: int = 200,
-    tol: float = 1e-3,
-    verbose: bool = True,
-) -> SuSiEPCAResults:
-    """The main inference function for SuSiE PCA.
-
-    Args:
-        X: Input data. Should be an array-like
-        z_dim: Latent factor dimension (int; K)
-        l_dim: Number of single-effects comprising each factor (int; L)
-        A: Annotation matrix to use in parameterized-prior mode. If not `None`, leading dimension
-            should match the feature dimension of X.
-        tau: initial value of residual precision (default = 1)
-        standardize: Whether to center and scale the input data with mean 0
-            and variance 1 (default = False)
-        init: How to initialize the variational mean parameters for latent factors.
-            Either "pca" or "random" (default = "pca")
-        seed: Seed for "random" initialization (int)
-        max_iter: Maximum number of iterations for inference (int)
-        tol: Numerical tolerance for ELBO convergence (float)
-        verbose: Flag to indicate displaying log information (ELBO value) in each
-            iteration
-
-    Returns:
-        :py:obj:`SuSiEPCAResults`: tuple that has member variables for learned
-        parameters (:py:obj:`ModelParams`), evidence lower bound (ELBO) results
-        (:py:obj:`ELBOResults`) from the last iteration, the percent of variance
-        explained (PVE) for each of the `K` factors (:py:obj:`jax.numpy.ndarray`),
-        the posterior inclusion probabilities (PIPs) for each of the `K` factors
-        and `P` features (:py:obj:`jax.numpy.ndarray`).
-
-    Raises:
-        ValueError: Invalid `l_dim` or `z_dim` values. Invalid initialization scheme.
-        Data `X` contains `inf` or `nan`. If annotation matrix `A` is not `None`, raises
-        if `A` contains `inf`, `nan` or does not match feature dimension with `X`.
-    """
-
-    # sanity check arguments
-    # _check_args(X, A, z_dim, l_dim, init)
-
-    # centerand possibly scale the data
-    X = SparseMatrix(X, scale=standardize)
+    # cast to jax array
+    if isinstance(X, ArrayLike):
+        X = jnp.asarray(X)
+        # option to center the data
+        X -= jnp.mean(X, axis=0)
+        if standardize:
+            X /= jnp.std(X, axis=0)
+    elif isinstance(X, sparse.JAXSparse):
+        X = SparseMatrix(X, scale=standardize)
 
     # initialize PRNGkey and params
     rng_key = random.PRNGKey(seed)
     params = _init_params(rng_key, X, z_dim, l_dim, A, tau, init)
 
-    _inner_loop_jit = eqx.filter_jit(_inner_loop)
-    _annotation_inner_loop_jit = eqx.filter_jit(_annotation_inner_loop)
-
     #  core loop for inference
     elbo = -5e25
     for idx in range(1, max_iter + 1):
         if A is not None:
-            elbo_res, params = _annotation_inner_loop_jit(X, A, params)
+            elbo_res, params = _annotation_inner_loop(X, A, params)
         else:
-            elbo_res, params = _inner_loop_jit(X, params)
+            elbo_res, params = _inner_loop(X, params)
 
         if verbose:
             print(f"Iter [{idx}] | {elbo_res}")

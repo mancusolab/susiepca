@@ -193,8 +193,8 @@ class SparseMatrix(lx.AbstractLinearOperator):
         return self.T.mv(vector.T).T
 
     @dispatch
-    def __rmatmul__(self, vector: Num[ArrayLike, "k n"]) -> Float[Array, "k p"]:
-        return self.T.mm(vector.T).T
+    def __rmatmul__(self, matrix: Num[ArrayLike, "k n"]) -> Float[Array, "k p"]:
+        return self.T.mm(matrix.T).T
 
     def mv(self, vector: Num[ArrayLike, " p"]) -> Float[Array, " n"]:
         return self.data.mv(vector)
