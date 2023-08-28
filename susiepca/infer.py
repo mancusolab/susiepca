@@ -1,5 +1,6 @@
 from typing import get_args, Literal, NamedTuple, Optional, Tuple
 
+from memory_profiler import profile
 from plum import dispatch
 
 import equinox as eqx
@@ -178,7 +179,12 @@ def _update_tau(X: ArrayLike, params: ModelParams) -> ModelParams:
     E_W, E_WW = _compute_w_moment(params)
 
     # expectation of log likelihood
-    E_ss = params.ssq - 2 * jnp.trace(E_W @ X.T @ params.mu_z) + jnp.trace(E_ZZ @ E_WW)
+    # E_ss = params.ssq - 2 * jnp.trace(E_W @ X.T @ params.mu_z) + jnp.trace(E_ZZ @ E_WW)
+    E_ss = (
+        jnp.sum(X**2)
+        - 2 * jnp.trace(E_W @ X.T @ params.mu_z)
+        + jnp.trace(E_ZZ @ E_WW)
+    )
     u_tau = (n_dim * p_dim) / E_ss
 
     return params._replace(tau=u_tau)
@@ -189,7 +195,7 @@ def _update_theta(
     A: ArrayLike,
     lr: float = 1e-2,
     tol: float = 1e-3,
-    max_iter: int = 60,
+    max_iter: int = 100,
 ) -> ModelParams:
     optimizer = optax.adam(lr)
     theta = params.theta
@@ -214,7 +220,6 @@ def _update_theta(
         tol_check = jnp.linalg.norm(theta - old_theta) > tol
         iter_check = idx < max_iter
         return jnp.logical_and(tol_check, iter_check)
-        # return tol_check
 
     # use jax.lax.while_loop until the change in parameters is less than a given tolerance
     old_theta, theta, idx_count, opt_state = lax.while_loop(
@@ -251,9 +256,10 @@ def compute_elbo(X: ArrayLike, params: ModelParams) -> ELBOResults:
     # calculation tip: tr(A @ A.T) = tr(A.T @ A) = sum(A ** 2)
     # (X.T @ E[Z] @ E[W]) is p x p (big!); compute (E[W] @ X.T @ E[Z]) (k x k)
     E_ll = (-0.5 * params.tau) * (
-        params.ssq
-        # - 2 * jnp.einsum("kp,np,nk->", E_W, X, params.mu_z)  # tr(E[W] @ X.T @ E[Z])
-        - 2 * jnp.sum((E_W @ X.T) @ params.mu_z)
+        # params.ssq
+        jnp.sum(X**2)
+        - 2 * jnp.einsum("kp,np,nk->", E_W, X, params.mu_z)  # tr(E[W] @ X.T @ E[Z])
+        # - 2 * jnp.sum((E_W @ X.T) @ params.mu_z)
         + jnp.einsum("ij,ji->", E_ZZ, E_WW)  # tr(E[Z.T @ Z] @ E[W @ W.T])
     ) + 0.5 * n_dim * p_dim * jnp.log(
         params.tau
@@ -483,6 +489,7 @@ def _reorder_factors_by_pve(
     return params, pve
 
 
+@profile
 def _init_params(
     rng_key: random.PRNGKey,
     X: ArrayLike | SparseMatrix,
@@ -531,6 +538,8 @@ def _init_params(
     if init == "pca":
         # run PCA and extract weights and latent
         init_mu_z = _svd(svd_key, X, z_dim)
+        # svd_result = jnp.linalg.svd(X - jnp.mean(X, axis=0), full_matrices=False)
+        # init_mu_z = svd_result[0] @ jnp.diag(svd_result[1])[:, 0:z_dim]
     elif init == "random":
         # random initialization
         init_mu_z = random.normal(mu_key, shape=(n_dim, z_dim))
@@ -638,6 +647,7 @@ def _check_args(
     return
 
 
+@profile
 def susie_pca(
     X: ArrayLike | sparse.JAXSparse,
     z_dim: int,
@@ -730,3 +740,14 @@ def susie_pca(
     pip = compute_pip(params)
 
     return SuSiEPCAResults(params, elbo_res, pve, pip)
+
+
+# Projection of the data onto the sparse components with trained SuSiE PCA
+def test_projected(X_test: ArrayLike, params: ModelParams):
+    E_W, E_WW = _compute_w_moment(params)
+    z_dim, p_dim = E_W.shape
+
+    update_var_z = jnp.linalg.inv(params.tau * E_WW + jnp.identity(z_dim))
+    update_mu_z = params.tau * (X_test @ E_W.T @ update_var_z)
+
+    return update_mu_z, update_var_z
