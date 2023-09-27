@@ -1,12 +1,13 @@
+from functools import partial
 from typing import get_args, Literal, NamedTuple, Optional, Tuple
 
-from memory_profiler import profile
 from plum import dispatch
 
+# from memory_profiler import profile
 import equinox as eqx
 import optax
 
-from jax import Array, grad, lax, nn, numpy as jnp, random
+from jax import Array, grad, jit, lax, nn, numpy as jnp, random
 from jax.experimental import sparse
 from jax.scipy import special as spec
 from jax.typing import ArrayLike
@@ -53,6 +54,42 @@ def _svd(rng_key: random.PRNGKey, A: ArrayLike | SparseMatrix, k: int) -> Array:
     U = eigvec * jnp.sqrt(eigvals)
 
     return U
+
+
+# define EM algorithm for PPCA to extract PPCA initialization
+@partial(jit, static_argnums=(2, 3, 4))
+def prob_pca(rng_key, X, k, max_iter=1000, tol=1e-3):
+    n_dim, p_dim = X.shape
+
+    # initial guess for W
+    w_key, z_key = random.split(rng_key, 2)
+
+    # check if reach the max_iter, or met the norm criterion every 100 iteration
+    def _condition(carry):
+        i, W, Z, old_Z = carry
+        tol_check = jnp.linalg.norm(Z - old_Z) > tol
+        return (i < max_iter) & ((i % 100 != 0) | tol_check)
+
+    # EM algorithm for PPCA
+    def _step(carry):
+        i, W, Z, old_Z = carry
+
+        # E step
+        Z_new = jnp.linalg.solve(W.T @ W, W.T @ X.T)
+
+        # M step
+        W_new = jnp.linalg.solve(Z_new @ Z_new.T, Z_new @ X).T
+
+        return i + 1, W_new, Z_new, Z
+
+    W = random.normal(w_key, shape=(p_dim, k))
+    Z = random.normal(z_key, shape=(k, n_dim))
+    Z_zero = jnp.zeros_like(Z)
+    initial_carry = 0, W, Z, Z_zero
+
+    _, W, Z, _ = lax.while_loop(_condition, _step, initial_carry)
+    # lets return transpose to match SuSiE-PCA
+    return Z.T, W
 
 
 def _logdet(A: ArrayLike) -> float:
@@ -489,7 +526,6 @@ def _reorder_factors_by_pve(
     return params, pve
 
 
-@profile
 def _init_params(
     rng_key: random.PRNGKey,
     X: ArrayLike | SparseMatrix,
@@ -537,7 +573,7 @@ def _init_params(
 
     if init == "pca":
         # run PCA and extract weights and latent
-        init_mu_z = _svd(svd_key, X, z_dim)
+        init_mu_z, _ = prob_pca(rng_key, X, k=z_dim)
         # svd_result = jnp.linalg.svd(X - jnp.mean(X, axis=0), full_matrices=False)
         # init_mu_z = svd_result[0] @ jnp.diag(svd_result[1])[:, 0:z_dim]
     elif init == "random":
@@ -647,7 +683,6 @@ def _check_args(
     return
 
 
-@profile
 def susie_pca(
     X: ArrayLike | sparse.JAXSparse,
     z_dim: int,
