@@ -1,8 +1,9 @@
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 
 import jax.numpy as jnp
 
-from jax import random
+from jax import nn, random
+from jax.typing import ArrayLike
 
 
 __all__ = [
@@ -21,9 +22,11 @@ class SimulatedData(NamedTuple):
 
     """
 
-    Z: jnp.ndarray
-    W: jnp.ndarray
-    X: jnp.ndarray
+    Z: ArrayLike
+    W: ArrayLike
+    X: ArrayLike
+    G: Optional[ArrayLike]
+    beta: Optional[ArrayLike]
 
 
 def generate_sim(
@@ -104,3 +107,90 @@ def generate_sim(
     X = m + random.normal(obs_key, shape=(n_dim, p_dim))
 
     return SimulatedData(Z, W, X)
+
+
+def generate_sim_design(
+    seed: int,
+    l_dim: int,
+    n_dim: int,
+    p_dim: int,
+    z_dim: int,
+    g_dim: int,
+    effect_size: float = 1.0,
+) -> SimulatedData:
+    """Create the function to generate a sparse data for PCA. Please note that to
+        illustrate how SuSiE PCA work, we build this simple and
+        straitforward simulation where each latent component have exact l_dim number
+        of non-overlapped single effects. Please make sure l_dim < p_dim/z_dim
+        when generate simulation data using this function.
+
+    Args:
+        seed: Seed for "random" initialization
+        l_dim: Number of single effects in each factor
+        n_dim: Number of sample in the data
+        p_dim: Number of feature in the data
+        z_dim: Number of Latent dimensions
+        effect_size: The effect size of features contributing to the factor.
+                      (default = 1).
+
+    Returns:
+        SimulatedData: Tuple that contains simulated factors (`N x K`),
+        W (factor loadings (`K x P`), and data X (data (`N x P`).
+    """
+
+    # interger seed
+    if isinstance(seed, int) is False:
+        raise ValueError(f"seed should be an interger: received seed = {seed}")
+
+    rng_key = random.PRNGKey(seed)
+    rng_key, z_key, b_key, beta_key, s_key, var_key, obs_key = random.split(rng_key, 7)
+
+    # dimension check
+    if l_dim > p_dim:
+        raise ValueError(
+            f"l_dim should be less than p: received l_dim = {l_dim}, p = {p_dim}"
+        )
+    if l_dim > p_dim / z_dim:
+        raise ValueError(
+            f"""l_dim is smaller than p_dim/z_dim,
+            please make sure each component has {l_dim} single effects"""
+        )
+
+    if l_dim <= 0:
+        raise ValueError(f"l_dim should be positive: received l_dim = {l_dim}")
+
+    if z_dim > p_dim:
+        raise ValueError(
+            f"z_dim should be less than p: received z_dim = {z_dim}, p = {p_dim}"
+        )
+    if z_dim > n_dim:
+        raise ValueError(
+            f"z_dim should be less than n: received z_dim = {z_dim}, n = {n_dim}"
+        )
+    if z_dim <= 0:
+        raise ValueError(f"z_dim should be positive: received z_dim = {z_dim}")
+
+    if effect_size <= 0:
+        raise ValueError(
+            f"effect size should be positive: received effect_size = {effect_size}"
+        )
+
+    # random W
+    W = jnp.zeros(shape=(z_dim, p_dim))
+
+    for k in range(z_dim):
+        W = W.at[k, (k * l_dim) : ((k + 1) * l_dim)].set(
+            effect_size * random.normal(b_key, shape=(l_dim,))
+        )
+
+    # linear function to generate Z
+    beta = random.normal(beta_key, shape=(g_dim, z_dim))
+    G = random.choice(s_key, g_dim, shape=(n_dim,))
+    G = nn.one_hot(G, g_dim)
+
+    Z = G @ beta + random.normal(var_key, shape=(n_dim, z_dim))
+    # Latent factor model
+    m = Z @ W
+    X = m + random.normal(obs_key, shape=(n_dim, p_dim))
+
+    return SimulatedData(Z, W, X, G, beta)
