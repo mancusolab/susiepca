@@ -5,12 +5,12 @@ from plum import dispatch
 
 # from memory_profiler import profile
 import equinox as eqx
+import lineax as lx
 import optax
 
 from jax import Array, grad, jit, lax, nn, numpy as jnp, random
 from jax.experimental import sparse
 from jax.scipy import special as spec
-from jax.scipy.sparse.linalg import cg
 from jax.typing import ArrayLike
 
 from .common import (
@@ -39,6 +39,16 @@ def _is_valid(X: ArrayLike):
 @dispatch
 def _is_valid(X: sparse.JAXSparse):
     return jnp.all(jnp.isfinite(X.data))
+
+
+@dispatch
+def _is_valid(G: ArrayLike):
+    return jnp.all(jnp.isfinite(G))
+
+
+@dispatch
+def _is_valid(G: sparse.JAXSparse):
+    return jnp.all(jnp.isfinite(G.data))
 
 
 def _svd(rng_key: random.PRNGKey, A: ArrayLike | SparseMatrix, k: int) -> Array:
@@ -270,13 +280,50 @@ def _update_theta(
 
 
 # Solver for beta: (G.T @ G) @ params.beta = G.T @ params.mu_z
-def _update_beta(G: ArrayLike, params: ModelParams) -> ModelParams:
-    # initialize beta parameter
-    init_beta = jnp.zeros_like(params.beta)
-    # conjugate gradient
-    beta, _ = cg(G.T @ G, G.T @ params.mu_z, x0=init_beta)
+# def _update_beta(G: ArrayLike, params: ModelParams) -> ModelParams:
+#     # initialize beta parameter
+#     init_beta = jnp.zeros_like(params.beta)
+#     # conjugate gradient
+#     beta, _ = cg(G.T @ G, G.T @ params.mu_z, x0=init_beta)
 
-    return params._replace(beta=beta)
+#     return params._replace(beta=beta)
+
+_multi_linear_solve = eqx.filter_vmap(lx.linear_solve, in_axes=(None, 1, None))
+
+
+@dispatch
+def _update_beta(G: ArrayLike, params: ModelParams) -> ModelParams:
+    # Create linear operator on G
+    G_op = lx.MatrixLinearOperator(G)
+    A = lx.TaggedLinearOperator(G_op.T @ G_op, lx.positive_semidefinite_tag)
+
+    # Right-hand side
+    rhs = G.T @ params.mu_z
+
+    # Use lineax's CG solver
+    solver = lx.CG(rtol=1e-6, atol=1e-6)
+    out = _multi_linear_solve(A, rhs, solver)
+
+    # Updated beta
+    updated_beta = out.value.T
+
+    return params._replace(beta=updated_beta)
+
+
+@dispatch
+def _update_beta(G: SparseMatrix, params: ModelParams) -> ModelParams:
+    # A = lx.TaggedLinearOperator(G.T @ G, lx.positive_semidefinite_tag)
+    # Right-hand side
+    rhs = G.T.mv(params.mu_z)
+
+    # Use lineax's CG solver
+    solver = lx.CG(rtol=1e-6, atol=1e-6)
+    out = _multi_linear_solve(G.T @ G, rhs, solver)
+
+    # Updated beta
+    updated_beta = out.value.T
+
+    return params._replace(beta=updated_beta)
 
 
 def compute_elbo(X: ArrayLike, G: ArrayLike, params: ModelParams) -> ELBOResults:
@@ -315,10 +362,11 @@ def compute_elbo(X: ArrayLike, G: ArrayLike, params: ModelParams) -> ELBOResults
 
     # neg-KL for Z
     # negKL_z = 0.5 * (-jnp.trace(E_ZZ) + n_dim * z_dim + n_dim * _logdet(params.var_z))
+    Z_pred = G @ params.beta
     negKL_z = -0.5 * (
         jnp.trace(E_ZZ)
-        - 2 * jnp.trace(params.mu_z.T @ G @ params.beta)
-        + jnp.trace(params.beta.T @ G.T @ G @ params.beta)
+        - 2 * jnp.trace(params.mu_z.T @ Z_pred)
+        + jnp.sum(Z_pred**2)
         - n_dim * z_dim
         - n_dim * _logdet(params.var_z)
     )
@@ -771,6 +819,7 @@ def susie_pca(
             X /= jnp.std(X, axis=0)
     elif isinstance(X, sparse.JAXSparse):
         X = SparseMatrix(X, scale=standardize)
+        G = SparseMatrix(G)
 
     # initialize PRNGkey and params
     rng_key = random.PRNGKey(seed)
