@@ -529,7 +529,9 @@ def _inner_loop(X: ArrayLike, G: ArrayLike, params: ModelParams):
 
 
 @eqx.filter_jit
-def _annotation_inner_loop(X: jnp.ndarray, A: jnp.ndarray, params: ModelParams):
+def _annotation_inner_loop(
+    X: ArrayLike, G: ArrayLike, A: ArrayLike, params: ModelParams
+):
     n_dim, z_dim = params.mu_z.shape
     l_dim, _, _ = params.mu_w.shape
 
@@ -550,13 +552,16 @@ def _annotation_inner_loop(X: jnp.ndarray, A: jnp.ndarray, params: ModelParams):
     _, W, _, params = lax.fori_loop(0, z_dim, _factor_loop_annotation, init_loop_param)
 
     # update factor parameters
-    params = _update_z(X, params)
+    params = _update_z(X, G, params)
+
+    # update beta
+    params = _update_beta(G, params)
 
     # update precision parameters via MLE
     params = _update_tau(X, params)
 
     # compute elbo
-    elbo_res = compute_elbo(X, params)
+    elbo_res = compute_elbo(X, G, params)
 
     return elbo_res, params
 
@@ -829,7 +834,7 @@ def susie_pca(
     elbo = -5e25
     for idx in range(1, max_iter + 1):
         if A is not None:
-            elbo_res, params = _annotation_inner_loop(X, A, params)
+            elbo_res, params = _annotation_inner_loop(X, G, A, params)
         else:
             elbo_res, params = _inner_loop(X, G, params)
 
