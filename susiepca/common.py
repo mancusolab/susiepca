@@ -74,6 +74,52 @@ class ModelParams(NamedTuple):
     theta: Array
     pi: Array
 
+    # sum of squares for data
+    ssq: FloatOrArray = 0.0
+
+    @property
+    def W(self) -> Array:
+        return jnp.sum(self.mu_w * self.alpha, axis=0)
+
+
+class ModelParams_Design(NamedTuple):
+    """
+    Define the class for variational parameters of all the variable we need
+    to infer from the SuSiE PCA.
+
+    Attributes:
+        mu_z: mean parameter for factor Z
+        var_z: variance parameter for factor Z
+        mu_w: conditional mean parameter for loadings W
+        var_w: conditional variance parameter for loading W
+        alpha: parameter for the gamma that follows multinomial
+                distribution
+        tau: inverse variance parameter of observed data X
+        tau_0: inverse variance parameter of single effect w_kl
+        pi: prior probability for gamma
+        beta: parameters for perturbation matrix
+
+    """
+
+    # variational params for Z
+    mu_z: Array
+    var_z: Array
+
+    # variational params for W given Gamma
+    mu_w: Array
+    var_w: Array
+
+    # variational params for Gamma
+    alpha: Array
+
+    # residual precision param
+    tau: FloatOrArray
+    tau_0: Array
+
+    # prior probability for gamma
+    theta: Array
+    pi: Array
+
     # paramter to perturbation matrix
     beta: Array
 

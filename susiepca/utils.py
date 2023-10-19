@@ -84,6 +84,15 @@ def pve_plot(pve: jnp.ndarray):
 
 # plot posterior weights/pips
 def plot_weight(factor: int, gene_name: pd.Series, n: int, W: jnp.ndarray):
+    """Visulizing the weight vector in one component and highlight
+    the top N points
+
+    Args:
+        factor: the factor we would like to look at its weight
+        gene_name: the list of feature name, should be in the same length of W.shape[1]
+        n: Highlight top n features
+        W: Weight matrix, in shape of k by p
+    """
     df_W = pd.DataFrame(
         {"weight": W[factor], "name": gene_name, "abs_weight": jnp.abs(W[factor])}
     )

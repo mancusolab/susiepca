@@ -17,7 +17,7 @@ from .common import (
     compute_pip,
     compute_pve,
     ELBOResults,
-    ModelParams,
+    ModelParams_Design,
     SuSiEPCAResults,
 )
 from .sparse import SparseMatrix
@@ -116,7 +116,7 @@ def _kl_gamma(alpha: ArrayLike, pi: ArrayLike) -> float:
     return jnp.sum(spec.xlogy(alpha, alpha) - spec.xlogy(alpha, pi))
 
 
-def _compute_w_moment(params: ModelParams) -> Tuple[Array, Array]:
+def _compute_w_moment(params: ModelParams_Design) -> Tuple[Array, Array]:
     trace_var = jnp.sum(
         params.var_w[:, :, jnp.newaxis] * params.alpha
         + (params.mu_w**2 * params.alpha * (1 - params.alpha)),
@@ -131,8 +131,8 @@ def _compute_w_moment(params: ModelParams) -> Tuple[Array, Array]:
 
 # Update posterior mean and variance W
 def _update_w(
-    RtZk: ArrayLike, E_zzk: ArrayLike, params: ModelParams, kdx: int, ldx: int
-) -> ModelParams:
+    RtZk: ArrayLike, E_zzk: ArrayLike, params: ModelParams_Design, kdx: int, ldx: int
+) -> ModelParams_Design:
     # n_dim, z_dim = params.mu_z.shape
 
     # calculate update_var_w as the new V[w | gamma]
@@ -156,7 +156,7 @@ def _log_bf_np(z: ArrayLike, s2: ArrayLike, s0: ArrayLike):
 
 
 # Update tau_0 based on MLE
-def _update_tau0_mle(params: ModelParams) -> ModelParams:
+def _update_tau0_mle(params: ModelParams_Design) -> ModelParams_Design:
     # l_dim, z_dim, p_dim = params.mu_w.shape
 
     est_varw = params.mu_w**2 + params.var_w[:, :, jnp.newaxis]
@@ -168,8 +168,8 @@ def _update_tau0_mle(params: ModelParams) -> ModelParams:
 
 # Update posterior of alpha using Bayes factor
 def _update_alpha_bf(
-    RtZk: ArrayLike, E_zzk: ArrayLike, params: ModelParams, kdx: int, ldx: int
-) -> ModelParams:
+    RtZk: ArrayLike, E_zzk: ArrayLike, params: ModelParams_Design, kdx: int, ldx: int
+) -> ModelParams_Design:
     Z_s = (RtZk / E_zzk) * jnp.sqrt(E_zzk * params.tau)
     s2_s = 1 / (E_zzk * params.tau)
     s20_s = params.tau_0[ldx, kdx]
@@ -187,8 +187,8 @@ def _update_alpha_bf(
 
 # Update posterior of alpha using Bayes factor in SuSiE PCA+Anno
 def _update_alpha_bf_annotation(
-    RtZk: ArrayLike, E_zzk: ArrayLike, params: ModelParams, kdx: int, ldx: int
-) -> ModelParams:
+    RtZk: ArrayLike, E_zzk: ArrayLike, params: ModelParams_Design, kdx: int, ldx: int
+) -> ModelParams_Design:
     Z_s = (RtZk / E_zzk) * jnp.sqrt(E_zzk * params.tau)
     s2_s = 1 / (E_zzk * params.tau)
     s20_s = params.tau_0[ldx, kdx]
@@ -205,7 +205,9 @@ def _update_alpha_bf_annotation(
 
 
 # Update Posterior mean and variance of Z
-def _update_z(X: ArrayLike, G: ArrayLike, params: ModelParams) -> ModelParams:
+def _update_z(
+    X: ArrayLike, G: ArrayLike, params: ModelParams_Design
+) -> ModelParams_Design:
     E_W, E_WW = _compute_w_moment(params)
     z_dim, p_dim = E_W.shape
 
@@ -216,7 +218,7 @@ def _update_z(X: ArrayLike, G: ArrayLike, params: ModelParams) -> ModelParams:
 
 
 # Update tau based on MLE
-def _update_tau(X: ArrayLike, params: ModelParams) -> ModelParams:
+def _update_tau(X: ArrayLike, params: ModelParams_Design) -> ModelParams_Design:
     n_dim, z_dim = params.mu_z.shape
     l_dim, z_dim, p_dim = params.mu_w.shape
 
@@ -239,12 +241,12 @@ def _update_tau(X: ArrayLike, params: ModelParams) -> ModelParams:
 
 
 def _update_theta(
-    params: ModelParams,
+    params: ModelParams_Design,
     A: ArrayLike,
     lr: float = 1e-2,
     tol: float = 1e-3,
     max_iter: int = 100,
-) -> ModelParams:
+) -> ModelParams_Design:
     optimizer = optax.adam(lr)
     theta = params.theta
     old_theta = jnp.zeros_like(params.theta)
@@ -280,7 +282,7 @@ def _update_theta(
 
 
 # Solver for beta: (G.T @ G) @ params.beta = G.T @ params.mu_z
-# def _update_beta(G: ArrayLike, params: ModelParams) -> ModelParams:
+# def _update_beta(G: ArrayLike, params: ModelParams_Design) -> ModelParams_Design:
 #     # initialize beta parameter
 #     init_beta = jnp.zeros_like(params.beta)
 #     # conjugate gradient
@@ -292,7 +294,7 @@ _multi_linear_solve = eqx.filter_vmap(lx.linear_solve, in_axes=(None, 1, None))
 
 
 @dispatch
-def _update_beta(G: ArrayLike, params: ModelParams) -> ModelParams:
+def _update_beta(G: ArrayLike, params: ModelParams_Design) -> ModelParams_Design:
     # Create linear operator on G
     G_op = lx.MatrixLinearOperator(G)
     A = lx.TaggedLinearOperator(G_op.T @ G_op, lx.positive_semidefinite_tag)
@@ -311,7 +313,7 @@ def _update_beta(G: ArrayLike, params: ModelParams) -> ModelParams:
 
 
 @dispatch
-def _update_beta(G: SparseMatrix, params: ModelParams) -> ModelParams:
+def _update_beta(G: SparseMatrix, params: ModelParams_Design) -> ModelParams_Design:
     # A = lx.TaggedLinearOperator(G.T @ G, lx.positive_semidefinite_tag)
     # Right-hand side
     rhs = G.T.mv(params.mu_z)
@@ -326,7 +328,7 @@ def _update_beta(G: SparseMatrix, params: ModelParams) -> ModelParams:
     return params._replace(beta=updated_beta)
 
 
-def compute_elbo(X: ArrayLike, G: ArrayLike, params: ModelParams) -> ELBOResults:
+def compute_elbo(X: ArrayLike, G: ArrayLike, params: ModelParams_Design) -> ELBOResults:
     """Create function to compute evidence lower bound (ELBO)
 
     Args:
@@ -396,7 +398,7 @@ class _FactorLoopResults(NamedTuple):
     X: Array | SparseMatrix
     W: Array
     EZZ: Array
-    params: ModelParams
+    params: ModelParams_Design
 
 
 class _EffectLoopResults(NamedTuple):
@@ -404,7 +406,7 @@ class _EffectLoopResults(NamedTuple):
     RtZk: Array
     Wk: Array
     k: int
-    params: ModelParams
+    params: ModelParams_Design
 
 
 def _factor_loop(kdx: int, loop_params: _FactorLoopResults) -> _FactorLoopResults:
@@ -497,7 +499,7 @@ def _effect_loop_annotation(
 
 
 @eqx.filter_jit
-def _inner_loop(X: ArrayLike, G: ArrayLike, params: ModelParams):
+def _inner_loop(X: ArrayLike, G: ArrayLike, params: ModelParams_Design):
     n_dim, z_dim = params.mu_z.shape
     l_dim, _, _ = params.mu_w.shape
 
@@ -530,7 +532,7 @@ def _inner_loop(X: ArrayLike, G: ArrayLike, params: ModelParams):
 
 @eqx.filter_jit
 def _annotation_inner_loop(
-    X: ArrayLike, G: ArrayLike, A: ArrayLike, params: ModelParams
+    X: ArrayLike, G: ArrayLike, A: ArrayLike, params: ModelParams_Design
 ):
     n_dim, z_dim = params.mu_z.shape
     l_dim, _, _ = params.mu_w.shape
@@ -567,8 +569,8 @@ def _annotation_inner_loop(
 
 
 def _reorder_factors_by_pve(
-    A: ArrayLike, params: ModelParams, pve: ArrayLike
-) -> Tuple[ModelParams, Array]:
+    A: ArrayLike, params: ModelParams_Design, pve: ArrayLike
+) -> Tuple[ModelParams_Design, Array]:
     sorted_indices = jnp.argsort(pve)[::-1]
     pve = pve[sorted_indices]
     sorted_mu_z = params.mu_z[:, sorted_indices]
@@ -585,7 +587,7 @@ def _reorder_factors_by_pve(
         sorted_theta = None
         sorted_pi = params.pi
 
-    params = ModelParams(
+    params = ModelParams_Design(
         sorted_mu_z,
         sorted_var_z,
         sorted_mu_w,
@@ -610,7 +612,7 @@ def _init_params(
     A: Optional[ArrayLike] = None,
     tau: float = 1.0,
     init: _init_type = "pca",
-) -> ModelParams:
+) -> ModelParams_Design:
     """Initialize parameters for SuSiE PCA.
 
     Args:
@@ -623,7 +625,7 @@ def _init_params(
         tau: initial value of residual precision
 
     Returns:
-        ModelParams: initialized set of model parameters.
+        ModelParams_Design: initialized set of model parameters.
 
     Raises:
         ValueError: Invalid initialization scheme.
@@ -691,7 +693,7 @@ def _init_params(
 
     ssq, _ = lax.scan(_trace_func, 0.0, omega.T)
 
-    return ModelParams(
+    return ModelParams_Design(
         init_mu_z,
         init_var_z,
         init_mu_w,
@@ -800,7 +802,7 @@ def susie_pca(
 
     Returns:
         :py:obj:`SuSiEPCAResults`: tuple that has member variables for learned
-        parameters (:py:obj:`ModelParams`), evidence lower bound (ELBO) results
+        parameters (:py:obj:`ModelParams_Design`), evidence lower bound (ELBO) results
         (:py:obj:`ELBOResults`) from the last iteration, the percent of variance
         explained (PVE) for each of the `K` factors (:py:obj:`jax.numpy.ndarray`),
         the posterior inclusion probabilities (PIPs) for each of the `K` factors
@@ -862,7 +864,7 @@ def susie_pca(
 
 
 # Projection of the data onto the sparse components with trained SuSiE PCA
-def test_projected(X_test: ArrayLike, params: ModelParams):
+def test_projected(X_test: ArrayLike, params: ModelParams_Design):
     E_W, E_WW = _compute_w_moment(params)
     z_dim, p_dim = E_W.shape
 
