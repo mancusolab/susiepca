@@ -18,7 +18,7 @@ from .common import (
     compute_pve,
     ELBOResults,
     ModelParams_Design,
-    SuSiEPCAResults,
+    SuSiEPCAResults_Design,
 )
 from .sparse import SparseMatrix
 
@@ -780,7 +780,7 @@ def susie_pca(
     max_iter: int = 200,
     tol: float = 1e-3,
     verbose: bool = True,
-) -> SuSiEPCAResults:
+) -> SuSiEPCAResults_Design:
     """The main inference function for SuSiE PCA.
 
     Args:
@@ -801,7 +801,7 @@ def susie_pca(
             iteration
 
     Returns:
-        :py:obj:`SuSiEPCAResults`: tuple that has member variables for learned
+        :py:obj:`SuSiEPCAResults_Design`: tuple that has member variables for learned
         parameters (:py:obj:`ModelParams_Design`), evidence lower bound (ELBO) results
         (:py:obj:`ELBOResults`) from the last iteration, the percent of variance
         explained (PVE) for each of the `K` factors (:py:obj:`jax.numpy.ndarray`),
@@ -860,7 +860,7 @@ def susie_pca(
     # compute PIPs
     pip = compute_pip(params)
 
-    return SuSiEPCAResults(params, elbo_res, pve, pip)
+    return SuSiEPCAResults_Design(params, elbo_res, pve, pip)
 
 
 # Projection of the data onto the sparse components with trained SuSiE PCA

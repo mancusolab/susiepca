@@ -153,6 +153,28 @@ class SuSiEPCAResults(NamedTuple):
         return self.params.W
 
 
+class SuSiEPCAResults_Design(NamedTuple):
+    """Define the results object returned by function :py:obj:`susie_pca`.
+
+    Attributes:
+        params: the dictionary contain all the infered parameters
+        elbo: the value of ELBO
+        pve: the ndarray of percent of variance explained
+        pip: the ndarray of posterior inclusion probabilities
+        W: the posterior mean parameter for loadings
+
+    """
+
+    params: ModelParams_Design
+    elbo: ELBOResults
+    pve: Array
+    pip: Array
+
+    @property
+    def W(self) -> Array:
+        return self.params.W
+
+
 def compute_pip(params: ModelParams) -> Array:
     """Compute the posterior inclusion probabilities (PIPs).
 
