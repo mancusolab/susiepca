@@ -5,6 +5,7 @@ from plum import dispatch
 
 # from memory_profiler import profile
 import equinox as eqx
+import jax
 import lineax as lx
 import optax
 
@@ -49,22 +50,6 @@ def _is_valid(G: ArrayLike):
 @dispatch
 def _is_valid(G: sparse.JAXSparse):
     return jnp.all(jnp.isfinite(G.data))
-
-
-def _svd(rng_key: random.PRNGKey, A: ArrayLike | SparseMatrix, k: int) -> Array:
-    n, m = A.shape
-
-    # initial search directions
-    initial = random.normal(rng_key, shape=(n, k))
-
-    # create operator
-    def AAT(x):
-        return A @ (A.T @ x)
-
-    eigvals, eigvec, n_iter = sparse.linalg.lobpcg_standard(AAT, initial, m=100)
-    U = eigvec * jnp.sqrt(eigvals)
-
-    return U
 
 
 # define EM algorithm for PPCA to extract PPCA initialization
@@ -206,7 +191,7 @@ def _update_alpha_bf_annotation(
 
 # Update Posterior mean and variance of Z
 def _update_z(
-    X: ArrayLike, G: ArrayLike, params: ModelParams_Design
+    X: ArrayLike | SparseMatrix, G: ArrayLike | SparseMatrix, params: ModelParams_Design
 ) -> ModelParams_Design:
     E_W, E_WW = _compute_w_moment(params)
     z_dim, p_dim = E_W.shape
@@ -218,7 +203,9 @@ def _update_z(
 
 
 # Update tau based on MLE
-def _update_tau(X: ArrayLike, params: ModelParams_Design) -> ModelParams_Design:
+def _update_tau(
+    X: ArrayLike | SparseMatrix, params: ModelParams_Design
+) -> ModelParams_Design:
     n_dim, z_dim = params.mu_z.shape
     l_dim, z_dim, p_dim = params.mu_w.shape
 
@@ -281,15 +268,6 @@ def _update_theta(
     return params._replace(theta=theta, pi=_compute_pi(A, theta))
 
 
-# Solver for beta: (G.T @ G) @ params.beta = G.T @ params.mu_z
-# def _update_beta(G: ArrayLike, params: ModelParams_Design) -> ModelParams_Design:
-#     # initialize beta parameter
-#     init_beta = jnp.zeros_like(params.beta)
-#     # conjugate gradient
-#     beta, _ = cg(G.T @ G, G.T @ params.mu_z, x0=init_beta)
-
-#     return params._replace(beta=beta)
-
 _multi_linear_solve = eqx.filter_vmap(lx.linear_solve, in_axes=(None, 1, None))
 
 
@@ -297,14 +275,10 @@ _multi_linear_solve = eqx.filter_vmap(lx.linear_solve, in_axes=(None, 1, None))
 def _update_beta(G: ArrayLike, params: ModelParams_Design) -> ModelParams_Design:
     # Create linear operator on G
     G_op = lx.MatrixLinearOperator(G)
-    A = lx.TaggedLinearOperator(G_op.T @ G_op, lx.positive_semidefinite_tag)
-
-    # Right-hand side
-    rhs = G.T @ params.mu_z
 
     # Use lineax's CG solver
-    solver = lx.CG(rtol=1e-6, atol=1e-6)
-    out = _multi_linear_solve(A, rhs, solver)
+    solver = lx.NormalCG(rtol=1e-6, atol=1e-6)
+    out = _multi_linear_solve(G_op, params.mu_z, solver)
 
     # Updated beta
     updated_beta = out.value.T
@@ -314,25 +288,23 @@ def _update_beta(G: ArrayLike, params: ModelParams_Design) -> ModelParams_Design
 
 @dispatch
 def _update_beta(G: SparseMatrix, params: ModelParams_Design) -> ModelParams_Design:
-    # A = lx.TaggedLinearOperator(G.T @ G, lx.positive_semidefinite_tag)
-    # Right-hand side
-    rhs = G.T.mv(params.mu_z)
-
     # Use lineax's CG solver
-    solver = lx.CG(rtol=1e-6, atol=1e-6)
-    out = _multi_linear_solve(G.T @ G, rhs, solver)
+    solver = lx.NormalCG(rtol=1e-6, atol=1e-6)
+    out = jax.vmap(lambda b: lx.linear_solve(G, b, solver), in_axes=1)(params.mu_z)
 
     # Updated beta
     updated_beta = out.value.T
-
     return params._replace(beta=updated_beta)
 
 
-def compute_elbo(X: ArrayLike, G: ArrayLike, params: ModelParams_Design) -> ELBOResults:
+def compute_elbo(
+    X: ArrayLike | SparseMatrix, G: ArrayLike | SparseMatrix, params: ModelParams_Design
+) -> ELBOResults:
     """Create function to compute evidence lower bound (ELBO)
 
     Args:
         X: the observed data, an N by P ndarray
+        G: secondary data.
         params: the dictionary contains all the infered parameters
 
     Returns:
@@ -499,7 +471,9 @@ def _effect_loop_annotation(
 
 
 @eqx.filter_jit
-def _inner_loop(X: ArrayLike, G: ArrayLike, params: ModelParams_Design):
+def _inner_loop(
+    X: ArrayLike | SparseMatrix, G: ArrayLike | SparseMatrix, params: ModelParams_Design
+):
     n_dim, z_dim = params.mu_z.shape
     l_dim, _, _ = params.mu_w.shape
 
@@ -532,7 +506,10 @@ def _inner_loop(X: ArrayLike, G: ArrayLike, params: ModelParams_Design):
 
 @eqx.filter_jit
 def _annotation_inner_loop(
-    X: ArrayLike, G: ArrayLike, A: ArrayLike, params: ModelParams_Design
+    X: ArrayLike | SparseMatrix,
+    G: ArrayLike | SparseMatrix,
+    A: ArrayLike,
+    params: ModelParams_Design,
 ):
     n_dim, z_dim = params.mu_z.shape
     l_dim, _, _ = params.mu_w.shape
@@ -653,8 +630,6 @@ def _init_params(
     if init == "pca":
         # run PCA and extract weights and latent
         init_mu_z, _ = prob_pca(svd_key, X, k=z_dim)
-        # svd_result = jnp.linalg.svd(X - jnp.mean(X, axis=0), full_matrices=False)
-        # init_mu_z = svd_result[0] @ jnp.diag(svd_result[1])[:, 0:z_dim]
     elif init == "random":
         # random initialization
         init_mu_z = random.normal(mu_key, shape=(n_dim, z_dim))
@@ -787,6 +762,7 @@ def susie_pca(
         X: Input data. Should be an array-like
         z_dim: Latent factor dimension (int; K)
         l_dim: Number of single-effects comprising each factor (int; L)
+        G: Secondary information. Should be an array-like or sparse JAX matrix.
         A: Annotation matrix to use in parameterized-prior mode. If not `None`, leading dimension
             should match the feature dimension of X.
         tau: initial value of residual precision (default = 1)
@@ -826,7 +802,14 @@ def susie_pca(
             X /= jnp.std(X, axis=0)
     elif isinstance(X, sparse.JAXSparse):
         X = SparseMatrix(X, scale=standardize)
-        G = SparseMatrix(G)
+    if isinstance(G, ArrayLike):
+        G = jnp.asarray(G)
+        # option to center the data
+        G -= jnp.mean(G, axis=0)
+        if standardize:
+            G /= jnp.std(G, axis=0)
+    elif isinstance(G, sparse.JAXSparse):
+        G = SparseMatrix(G, scale=standardize)
 
     # initialize PRNGkey and params
     rng_key = random.PRNGKey(seed)
@@ -861,14 +844,3 @@ def susie_pca(
     pip = compute_pip(params)
 
     return SuSiEPCAResults_Design(params, elbo_res, pve, pip)
-
-
-# Projection of the data onto the sparse components with trained SuSiE PCA
-def test_projected(X_test: ArrayLike, params: ModelParams_Design):
-    E_W, E_WW = _compute_w_moment(params)
-    z_dim, p_dim = E_W.shape
-
-    update_var_z = jnp.linalg.inv(params.tau * E_WW + jnp.identity(z_dim))
-    update_mu_z = params.tau * (X_test @ E_W.T @ update_var_z)
-
-    return update_mu_z, update_var_z

@@ -51,7 +51,6 @@ class ModelParams(NamedTuple):
         tau: inverse variance parameter of observed data X
         tau_0: inverse variance parameter of single effect w_kl
         pi: prior probability for gamma
-        beta: parameters for perturbation matrix
 
     """
 
