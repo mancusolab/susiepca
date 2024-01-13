@@ -115,7 +115,7 @@ Get Started with Example
 
 .. code:: python
 
-   results = sp.infer.susie_pca(X, z_dim = 4, l_dim = 40, center = False, init = "pca", max_iter=200)
+   results = sp.infer.susie_pca(X, z_dim = 4, l_dim = 40, max_iter=200)
 
 The returned "results" contain 5 different objects:
 
