@@ -179,7 +179,7 @@ You can also calculate the relative root mean square error (RRMSE) to assess the
 
 .. code:: python
 
-   cs = sp.metrics.get_credset_v2(results.params.alpha, rho=0.9)
+   cs = sp.metrics.get_credset(results.params.alpha, rho=0.9)
 
 .. _Notes:
 .. |Notes| replace:: **Notes**
