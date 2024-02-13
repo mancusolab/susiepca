@@ -1,6 +1,7 @@
 equinox
 jax
 jaxlib
+lineax
 numpy
 optax
 pandas
