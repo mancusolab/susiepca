@@ -1,5 +1,6 @@
-numpy
 jax
 jaxlib
+numpy
 pandas
+plum
 scikit-learn
