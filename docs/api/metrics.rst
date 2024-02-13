@@ -3,8 +3,8 @@ susiepca.metrics
 
 Classes
 -------
-.. python-apigen-group:: Metrics Classes
+.. python-apigen-group:: metrics-classes
 
 Functions
 ---------
-.. python-apigen-group:: Metrics Public-Members
+.. python-apigen-group:: metrics-public-members

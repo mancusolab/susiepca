@@ -3,8 +3,8 @@ susiepca.sim
 
 Classes
 -------
-.. python-apigen-group:: Sim Classes
+.. python-apigen-group:: sim-classes
 
 Functions
 ---------
-.. python-apigen-group:: Sim Public-Members
+.. python-apigen-group:: sim-public-members

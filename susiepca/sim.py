@@ -3,6 +3,7 @@ from typing import NamedTuple
 import jax.numpy as jnp
 
 from jax import random
+from jaxtyping import Array
 
 
 __all__ = [
@@ -21,9 +22,9 @@ class SimulatedData(NamedTuple):
 
     """
 
-    Z: jnp.ndarray
-    W: jnp.ndarray
-    X: jnp.ndarray
+    Z: Array
+    W: Array
+    X: Array
 
 
 def generate_sim(

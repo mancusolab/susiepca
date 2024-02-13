@@ -108,12 +108,12 @@ python_apigen_modules = {
 }
 
 python_apigen_default_groups = [
-    (r".*:susiepca.infer.*", "Infer Public-members"),
-    (r"class:susiepca.infer.*", "Infer Classes"),
-    (r".*:susiepca.metrics.*", "Metrics Public-members"),
-    (r"class:susiepca.metrics.*", "Metrics Classes"),
-    (r".*:susiepca.sim.*", "Sim Public-members"),
-    (r"class:susiepca.sim.*", "Sim Classes"),
+    (r".*:susiepca.infer.*", "infer-public-members"),
+    (r"class:susiepca.infer.*", "infer-classes"),
+    (r".*:susiepca.metrics.*", "metrics-public-members"),
+    (r"class:susiepca.metrics.*", "metrics-classes"),
+    (r".*:susiepca.sim.*", "sim-public-members"),
+    (r"class:susiepca.sim.*", "sim-classes"),
     (r"method:.*\.__(str|repr)__", "String representation"),
     # ("method:.*", "Methods"),
     # ("classmethod:.*", "Class methods"),
