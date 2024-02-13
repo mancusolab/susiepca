@@ -1,6 +1,7 @@
 equinox
 jax
 jaxlib
+jaxtyping
 lineax
 matplotlib
 numpy
