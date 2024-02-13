@@ -2,5 +2,5 @@ jax
 jaxlib
 numpy
 pandas
-plum
+plum-dispatch
 scikit-learn
