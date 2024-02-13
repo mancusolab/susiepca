@@ -2,8 +2,10 @@ equinox
 jax
 jaxlib
 lineax
+matplotlib
 numpy
 optax
 pandas
 plum-dispatch
 scikit-learn
+seaborn
