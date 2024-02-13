@@ -1,6 +1,8 @@
+equinox
 jax
 jaxlib
 numpy
+optax
 pandas
 plum-dispatch
 scikit-learn
