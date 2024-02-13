@@ -2,4 +2,4 @@ numpy
 jax
 jaxlib
 pandas
-sklearn
+scikit-learn
