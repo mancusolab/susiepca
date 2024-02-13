@@ -43,7 +43,11 @@ SuSiE PCA is the abbreviation for the Sum of Single Effects model [1]_ for princ
 for an efficient variable selection in PCA when dealing with high dimensional data with sparsity, and for quantifying
 uncertainty of contributing features for each latent component through posterior inclusion probabilities (PIPs). We
 implement the model with the `JAX <https://github.com/google/jax>`_ library developed by Google which enable the fast
-training on CPU, GPU or TPU. The paper has been published in `iScience (2023) <https://www.cell.com/iscience/fulltext/S2589-0042(23)02258-7?_returnURL=https%3A%2F%2Flinkinghub.elsevier.com%2Fretrieve%2Fpii%2FS2589004223022587%3Fshowall%3Dtrue>`_
+training on CPU, GPU or TPU. 
+
+If you enjoy/use our software, please consider citing its publication in `iScience (2023) <https://www.cell.com/iscience/fulltext/S2589-0042(23)02258-7?_returnURL=https%3A%2F%2Flinkinghub.elsevier.com%2Fretrieve%2Fpii%2FS2589004223022587%3Fshowall%3Dtrue>`_,
+
+    Yuan, D. and Mancuso, N., 2023. SuSiE PCA: A scalable Bayesian variable selection technique for principal component analysis. iScience, 26(11). DOI: https://doi.org/10.1016/j.isci.2023.108181
 
 |Documentation|_ | |Installation|_ | |Example|_ | |Notes|_ | |References|_ | |Support|_
 
